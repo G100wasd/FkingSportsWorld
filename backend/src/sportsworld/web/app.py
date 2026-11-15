@@ -10,6 +10,8 @@ from pydantic import BaseModel
 
 from ..config import CFG, load as cfg_load, save as cfg_save
 from ..services.auth import login, stable_identity
+from ..services import myinfo as myinfo_svc
+from ..services import records as records_svc
 from . import logcap
 from . import pipeline
 from . import queue as submitq
@@ -174,6 +176,17 @@ def api_login(body: LoginBody):
     info["anchor"] = state.anchor_for(u)
     info["auto"] = state.auto_for(u)
     return info
+
+
+@app.get("/api/myinfo")
+def api_myinfo():
+    """信息卡：学期进度 + 历史跑步记录（纯读，不产生副作用）。
+    记录行原样透传——statusInfo/reasonList 等状态字段按学校返回。"""
+    sess = state.get_session()
+    recs = records_svc.fetch_records(sess)
+    rrid = int(recs[0].get("rrid") or 0) if recs else 0
+    return {"records": recs,
+            "semester": myinfo_svc.fetch_semester(sess, latest_rrid=rrid)}
 
 
 @app.post("/api/logout")

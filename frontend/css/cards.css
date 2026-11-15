@@ -31,6 +31,24 @@
 #rail .bottom ~ .bottom { margin-top: 0; }
 #rail .rail-ico:last-child { margin-bottom: 12px; }
 
+/* —— 信息卡记录行 —— */
+.rec-row {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 11px;
+  padding: 5px 2px; border-bottom: 1px solid var(--line2);
+}
+.rec-date { flex: 0 0 88px; color: var(--dim); }
+.rec-dis { flex: 0 0 52px; color: var(--text); }
+.rec-dur { flex: 0 0 40px; color: var(--dim); }
+.rec-tag {
+  margin-left: auto; font-size: 10px; padding: 1px 6px;
+  border: 1px solid var(--line); letter-spacing: 1px; white-space: nowrap;
+}
+.rec-tag.ok { color: var(--green); border-color: var(--green); }
+.rec-tag.warn { color: var(--warn); border-color: var(--warn); }
+.rec-tag.bad { color: var(--red); border-color: var(--red); }
+.rec-tag.dim { color: var(--faint); }
+
 /* —— 卡片区：纵向滑轨视口 —— */
 #panel {
   width: 370px; flex-shrink: 0; min-width: 260px; max-width: 560px;

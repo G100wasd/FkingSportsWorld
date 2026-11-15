@@ -88,6 +88,7 @@ async function doLogin() {
     if (!applyAnchor(sess.anchor) && map) locateMe(AMap_);
     updateAutoBtn();
     setLogView(false);                   // 登录成功：切回地图视图
+    refreshInfo();                       // 信息卡预载学期/记录
     if (compact()) gotoCard("c-anchor");   // 手机端登录后跳回定位卡
     if (AUTO_MODE) runAutoFlow();      // ?auto 链接：登录成功即接自动链
   } catch (e) {
@@ -115,6 +116,7 @@ async function doLogout() {
   setRunBlock("off");
   setStatus("off", "未登录");
   setLogView(true);                    // 登出回日志视图（地图已无数据）
+  refreshInfo();                       // 信息卡复位为未登录
 }
 
 $("btn-auth").onclick = () => { sess ? doLogout() : doLogin(); };
