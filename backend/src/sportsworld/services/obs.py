@@ -1,5 +1,7 @@
 """OBS 上传：POST /api/obs/temporary/url 换签名 URL → PUT JSON。"""
 
+import base64
+import gzip
 import json
 
 import httpx
@@ -55,3 +57,22 @@ def upload_both_keys(sess, keys, payload: bytes, host: str = HOST) -> int:
             except Exception as e:
                 print(f"[obs] PUT {key} 失败: {e}")
     return ok
+
+
+def fetch_object(sess, key: str, host: str = HOST) -> dict:
+    """签名 GET 回读 OBS 对象（10 键、值均为 gzip+base64）。"""
+    with httpx.Client(timeout=30.0) as client:
+        url = sign_url(sess, key, client, method="Get", host=host)
+        r = client.get(url)
+        r.raise_for_status()
+        print(f"[obs] GET {key} 回读 {len(r.content)} 字节")
+        return r.json()
+
+
+def ungz(value: str):
+    """OBS 字段值解码：base64 → gunzip → JSON（非 JSON 时返回原文）。"""
+    text = gzip.decompress(base64.b64decode(value)).decode("utf-8", "replace")
+    try:
+        return json.loads(text)
+    except ValueError:
+        return text

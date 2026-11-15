@@ -110,6 +110,61 @@ function updateCfgHint() {
   syncCadStride("stride");   // 速度变化后步频按已持久化的步幅重算
 }
 
+/* ---------- 地点：省市两级下拉（AMap DistrictSearch，市名提交到 address） ---------- */
+let CFG_ADDRESS = "", CFG_ADDRESS_PROV = "";
+let _addrInit = false;
+
+function updateAddrWarn() {
+  const w = $("submit-addr-warn");
+  if (w) w.textContent = CFG_ADDRESS ? "" :
+    "⚠ 未配置地点：提交记录的地址字段将为空，与真实记录不符" +
+    "——请在跑步配置卡选择所在城市";
+}
+
+function addrSet(provName, cityName) {
+  CFG_ADDRESS_PROV = provName || "";
+  CFG_ADDRESS = cityName || "";
+  updateAddrWarn();
+}
+
+function loadCities(provName) {
+  const city = $("cfg-city");
+  if (!provName) {
+    city.innerHTML = '<option value="">市</option>';
+    addrSet("", "");
+    return;
+  }
+  const ds = new AMap_.DistrictSearch({ level: "province", subdistrict: 1 });
+  ds.search(provName, (st, res) => {
+    const list = (st === "complete" && res.districtList[0].districtList) || [];
+    // 直辖市下级是区：保留省名本身作为市级选项
+    const names = [provName, ...list.map(d => d.name).filter(Boolean)];
+    city.innerHTML = names.map(n => `<option>${esc(n)}</option>`).join("");
+    city.value = CFG_ADDRESS || provName;
+    addrSet(provName, city.value);
+  });
+}
+
+function initAddrSelect() {
+  if (_addrInit || !AMap_) return;
+  _addrInit = true;
+  const prov = $("cfg-prov");
+  const ds = new AMap_.DistrictSearch({ level: "country", subdistrict: 1 });
+  ds.search("中国", (st, res) => {
+    if (st !== "complete" || !res.districtList.length) {
+      $("cfg-addr-hint").textContent = "行政区数据加载失败（检查 amap_key）";
+      return;
+    }
+    prov.innerHTML = '<option value="">省/直辖市</option>' +
+      res.districtList[0].districtList
+        .map(d => `<option>${esc(d.name)}</option>`).join("");
+    if (CFG_ADDRESS_PROV) { prov.value = CFG_ADDRESS_PROV; loadCities(prov.value); }
+  });
+  prov.addEventListener("change", () => loadCities(prov.value));
+  $("cfg-city").addEventListener("change",
+    e => addrSet(prov.value, e.target.value));
+}
+
 /* ---------- 保存前的配置检查 ----------
    红字（格式错误）→ 保存按钮下方说明区，且本次不落盘；
    黄字（语义警告）→ 对应输入框下方的 field-hint。 */
@@ -182,6 +237,8 @@ $("btn-cfg-save").onclick = async () => {
     const payload = {
       default_dist: cfgDist(),
       default_dur: cfgEffDur(),
+      address: CFG_ADDRESS,
+      address_prov: CFG_ADDRESS_PROV,
     };
     const altRaw = parseFloat(halfWidth(($("cfg-alt").value || "").trim()));
     if (Number.isFinite(altRaw) && altRaw > 0) payload.alt_cap = altRaw;
@@ -199,6 +256,9 @@ $("btn-cfg-save").onclick = async () => {
     const r = await api("/api/config", payload);
     CFG_DEFAULT_DIST = r.run.default_dist ?? CFG_DEFAULT_DIST;
     CFG_DEFAULT_DUR = r.run.default_dur ?? CFG_DEFAULT_DUR;
+    CFG_ADDRESS = r.run.address || "";
+    CFG_ADDRESS_PROV = r.run.address_prov || "";
+    updateAddrWarn();
     if (r.run.start_window) [CFG_START_LO, CFG_START_HI] = r.run.start_window;
     if (r.track?.alt_cap) $("cfg-alt").value = r.track.alt_cap;
     if (r.track?.cad_max) $("cfg-cadmax").value = r.track.cad_max;

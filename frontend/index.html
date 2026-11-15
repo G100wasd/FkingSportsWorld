@@ -123,6 +123,13 @@
         <div class="row"><label>步频 spm</label><input id="cfg-cad" placeholder="165"></div>
         <div class="row"><label>步幅 m</label><input id="cfg-stride" placeholder="1.20"></div>
         <div class="row"><label>最大步频</label><input id="cfg-cadmax" placeholder="260"></div>
+        <div class="row"><label>地点</label>
+          <div class="addr-sel">
+            <select id="cfg-prov"><option value="">省/直辖市</option></select>
+            <select id="cfg-city"><option value="">市</option></select>
+          </div>
+        </div>
+        <div class="hint field-hint" id="cfg-addr-hint"></div>
         <div class="btn-row" style="margin-top:9px">
           <button class="btn" id="btn-cfg-save">保存配置</button>
         </div>
@@ -176,6 +183,7 @@
       <div class="card-body"><div class="body-inner">
         <div id="fit-summary"><div class="hint">NO DATA — 先获取打卡点并拟合。</div></div>
         <div class="hint" id="submit-warn" style="color:var(--warn)"></div>
+        <div class="hint" id="submit-addr-warn" style="color:var(--warn)"></div>
         <div class="hint" id="submit-defer-hint" style="color:var(--warn)"></div>
         <div class="btn-row" style="margin-top:9px">
           <button class="btn primary" id="btn-submit" disabled>提交记录</button>
@@ -216,10 +224,6 @@
         <div id="info-semester"><div class="hint">未登录</div></div>
         <div class="sect"><span>跑步记录</span><i>//</i></div>
         <div id="info-records"><div class="hint">未登录</div></div>
-        <details class="sub-detail">
-          <summary>原始 JSON</summary>
-          <pre id="info-raw"></pre>
-        </details>
         <div class="btn-row" style="margin-top:9px">
           <button class="btn" id="btn-info-refresh">刷新</button>
         </div>

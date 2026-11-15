@@ -18,9 +18,11 @@ function initMap() {
   return ensureLoader().then(() => AMapLoader.load({
     key: FE.frontend.amap_key,
     version: "2.0",
-    plugins: ["AMap.Geolocation", "AMap.Scale", "AMap.ConvertFrom"],
+    plugins: ["AMap.Geolocation", "AMap.Scale", "AMap.ConvertFrom",
+              "AMap.DistrictSearch"],
   })).then(AMap => {
     AMap_ = AMap;
+    if (typeof initAddrSelect === "function") initAddrSelect();
     map = new AMap.Map("map", {
       zoom: 15, dragEnable: true, zoomEnable: true,
     });

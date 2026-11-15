@@ -71,6 +71,8 @@ class RunConfigBody(BaseModel):
     alt_cap: float | None = None          # 生成的最大海拔（track 段）
     cad_max: float | None = None          # 生成的最大步频（track 段）
     stride_mean: float | None = None      # 生成步幅均值 m（track 段）
+    address: str | None = None            # 提交体地点文本（run 段）
+    address_prov: str | None = None       # 省名（仅前端下拉回显用）
 
 
 class DeferBody(BaseModel):
@@ -123,6 +125,11 @@ def api_config(body: RunConfigBody):
         v = getattr(body, k, None)
         if v is not None and v != "":
             run[k] = v
+    # 地点允许空串（用户主动清空）
+    for k in ("address", "address_prov"):
+        v = getattr(body, k, None)
+        if v is not None:
+            run[k] = str(v).strip()
     for k in ("alt_cap", "cad_max", "stride_mean"):
         v = getattr(body, k, None)
         if v is not None and v > 0:
@@ -187,6 +194,13 @@ def api_myinfo():
     rrid = int(recs[0].get("rrid") or 0) if recs else 0
     return {"records": recs,
             "semester": myinfo_svc.fetch_semester(sess, latest_rrid=rrid)}
+
+
+@app.get("/api/record_detail")
+def api_record_detail(rrid: int, uuid: str = "", start: int = 0):
+    sess = state.get_session()
+    return myinfo_svc.fetch_record_detail(sess, rrid, uuid=uuid,
+                                          start_ms=start)
 
 
 @app.post("/api/logout")

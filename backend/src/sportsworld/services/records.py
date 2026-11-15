@@ -15,13 +15,12 @@ RECORDS_PATH = "/api/v70230/runnings/records"
 GET_ONE_PATH = "/api/v70260/runnings/get_one_record"
 
 
-def fetch_records(sess, host: str = HOST) -> list:
-    """记录列表：返回原始行（不裁剪字段——statusInfo/reasonList 等
-    状态字段按学校实际返回，前端据此区分存活/异常记录）。"""
-    with httpx.Client(timeout=30.0) as client:
-        out = envelope_request(client, sess.envelope, sess.identity,
-                               "POST", host + RECORDS_PATH, "{}",
-                               uid=sess.uid, token=sess.token)
+def _records_page(sess, client: httpx.Client, host: str,
+                  page: int, size: int) -> list:
+    out = envelope_request(client, sess.envelope, sess.identity,
+                           "POST", host + RECORDS_PATH,
+                           compact({"pageNum": page, "pageSize": size}),
+                           uid=sess.uid, token=sess.token)
     biz = check_business(out["business"])
     inner = parse_data_field(biz)
     if isinstance(inner, list):
@@ -32,6 +31,20 @@ def fetch_records(sess, host: str = HOST) -> list:
             if isinstance(v, list):
                 return v
     return []
+
+
+def fetch_records(sess, host: str = HOST) -> list:
+    """记录列表（自动翻页取全量）：接口按 pageNum/pageSize 分页、默认 10 条——
+    实测 pageNum=2 可翻出更早记录。返回原始行不裁剪字段。"""
+    size, page, rows = 50, 1, []
+    with httpx.Client(timeout=30.0) as client:
+        while page <= 20:                       # 上限 20 页防死循环
+            part = _records_page(sess, client, host, page, size)
+            rows.extend(part)
+            if len(part) < size:
+                break
+            page += 1
+    return rows
 
 
 def fetch_one_record(sess, rrid: int, host: str = HOST) -> dict:

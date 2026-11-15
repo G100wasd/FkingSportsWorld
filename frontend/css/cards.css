@@ -31,6 +31,18 @@
 #rail .bottom ~ .bottom { margin-top: 0; }
 #rail .rail-ico:last-child { margin-bottom: 12px; }
 
+.sem-done {
+  text-align: center; padding: 14px 0 12px;
+  border: 1px solid var(--line2);
+}
+.sem-done b {
+  display: block; font-family: var(--mono); font-size: 22px;
+  font-weight: 600; color: var(--text);
+}
+.sem-done span {
+  font-size: 10px; color: var(--faint); letter-spacing: 2px;
+}
+
 /* —— 信息卡记录行 —— */
 .rec-row {
   display: flex; align-items: center; gap: 8px;
@@ -48,6 +60,28 @@
 .rec-tag.warn { color: var(--warn); border-color: var(--warn); }
 .rec-tag.bad { color: var(--red); border-color: var(--red); }
 .rec-tag.dim { color: var(--faint); }
+.rec-caret { color: var(--faint); font-size: 9px; transition: transform .18s; }
+.rec-row { cursor: pointer; }
+.rec-row:hover { background: var(--bg2, rgba(0,0,0,.03)); }
+.rec-row.open .rec-caret { transform: rotate(180deg); }
+
+/* —— 记录详情展开 —— */
+.rec-detail {
+  display: none; padding: 8px 2px 10px;
+  border-bottom: 1px solid var(--line2);
+}
+.rec-detail.open { display: block; }
+.rec-track {
+  display: block; width: 100%; height: 140px;
+  border: 1px solid var(--line2); margin-bottom: 6px;
+}
+.rec-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.rec-chart { border: 1px solid var(--line2); padding: 3px 4px 4px; }
+.rec-chart em {
+  display: block; font-style: normal; font-size: 9px;
+  color: var(--faint); letter-spacing: 1px; margin-bottom: 2px;
+}
+.rec-chart canvas { display: block; width: 100%; height: 54px; }
 
 /* —— 卡片区：纵向滑轨视口 —— */
 #panel {
@@ -112,6 +146,14 @@
 }
 .row input:focus { border-color: var(--accent-d); }
 .row input::placeholder { color: var(--faint); }
+.addr-sel { flex: 1; display: flex; gap: 6px; min-width: 0; }
+.addr-sel select {
+  flex: 1; min-width: 0; height: 28px; padding: 0 6px;
+  background: var(--bg2); color: var(--text);
+  border: 1px solid var(--ghost); outline: none;
+  font-family: var(--mono); font-size: 11px;
+}
+.addr-sel select:focus { border-color: var(--accent-d); }
 .row input[type=range] { padding: 0; height: auto; border: none; background: transparent; accent-color: var(--accent); }
 
 .btn-row { display: flex; gap: 6px; margin-bottom: 6px; }

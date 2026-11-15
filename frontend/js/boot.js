@@ -8,6 +8,8 @@
     const R = d.run || {}, F = d.frontend || {}, C = F.ctrl || {};
     CFG_DEFAULT_DIST = R.default_dist ?? CFG_DEFAULT_DIST;
     CFG_DEFAULT_DUR = R.default_dur ?? CFG_DEFAULT_DUR;
+    CFG_ADDRESS = R.address || "";
+    CFG_ADDRESS_PROV = R.address_prov || "";
     if (R.start_window) [CFG_START_LO, CFG_START_HI] = R.start_window;
     MAX_REFIT = F.max_refit ?? MAX_REFIT;
     LAP_COLORS = F.lap_colors || LAP_COLORS;
@@ -34,6 +36,7 @@
     console.warn("配置下发失败，使用内置默认值", e);
   }
   updateCfgHint();
+  updateAddrWarn();
 
   if (FE.username && FE.password) setStatus("busy", "正在恢复登录…");
   try {
