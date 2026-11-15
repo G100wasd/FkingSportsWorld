@@ -18,14 +18,13 @@ function initMap() {
   return ensureLoader().then(() => AMapLoader.load({
     key: FE.frontend.amap_key,
     version: "2.0",
-    plugins: ["AMap.Geolocation", "AMap.Scale", "AMap.ToolBar", "AMap.ConvertFrom"],
+    plugins: ["AMap.Geolocation", "AMap.Scale", "AMap.ConvertFrom"],
   })).then(AMap => {
     AMap_ = AMap;
     map = new AMap.Map("map", {
       zoom: 15, dragEnable: true, zoomEnable: true,
     });
     map.addControl(new AMap.Scale());
-    map.addControl(new AMap.ToolBar({ position: "RB" }));
     map.on("click", onMapClick);
     $("map-emblem").style.display = "none";
     const c = readInputs();

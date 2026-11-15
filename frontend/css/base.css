@@ -36,6 +36,18 @@ body {
   border-bottom: 1px solid var(--line);
 }
 #bar .logo-img { height: 30px; width: auto; display: block; flex-shrink: 0; }
+#bar .logo-link { position: relative; display: block; flex-shrink: 0; }
+#bar .logo-link .logo-img { transition: opacity .3s ease, transform .3s ease; }
+#bar .logo-gh {
+  position: absolute; top: 50%; left: 50%;
+  height: 100%; aspect-ratio: 1; fill: var(--text);
+  opacity: 0; pointer-events: none;
+  transform: translate(-50%,-50%) scale(.3) rotate(-40deg);
+  transition: opacity .3s ease, transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+#bar .logo-link:hover .logo-img, #bar .logo-link:focus-visible .logo-img { opacity: 0; transform: scale(.3) rotate(40deg); }
+#bar .logo-link:hover .logo-gh, #bar .logo-link:focus-visible .logo-gh { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(0deg); }
+#bar .logo-link:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 #bar input {
   width: 168px; height: 30px; padding: 0 10px;
   background: transparent; color: var(--text);

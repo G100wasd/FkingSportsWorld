@@ -25,7 +25,11 @@
 .rail-ico:hover { color: var(--dim); }
 .rail-ico.active { color: var(--accent); }
 .rail-ico svg { width: 15px; height: 15px; display: block; }
-#rail .bottom { margin-top: auto; margin-bottom: 12px; }
+/* .bottom 组整体沉底：仅首个吃 auto 上边距，后续 .bottom 用 gap:4px 紧跟；
+   底部留白挂在最后一个图标上 */
+#rail .bottom { margin-top: auto; }
+#rail .bottom ~ .bottom { margin-top: 0; }
+#rail .rail-ico:last-child { margin-bottom: 12px; }
 
 /* —— 卡片区：纵向滑轨视口 —— */
 #panel {

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from ..config import CFG, load as cfg_load, save as cfg_save
 from ..services.auth import login, stable_identity
+from . import logcap
 from . import pipeline
 from . import queue as submitq
 from . import state
@@ -270,6 +271,25 @@ def api_submit_cancel(body: CancelBody):
         raise HTTPException(409, "任务正在执行中，无法取消")
     jobs.pop(uuid)
     return {"cancelled": uuid}
+
+
+class LogBody(BaseModel):
+    """前端 UI 事件 → 日志视图（[web] 前缀区分于后端 print）。"""
+    level: str = "INFO"
+    text: str = ""
+
+
+@app.post("/api/log")
+def api_log(body: LogBody):
+    if body.text.strip():
+        logcap.emit(body.level, "[web] " + body.text)
+    return {"ok": True}
+
+
+@app.get("/api/logs")
+def api_logs(after: int = 0):
+    """日志视图轮询：seq>after 的增量行 + dropped 省略计数。"""
+    return logcap.snapshot(after)
 
 
 @app.on_event("startup")

@@ -65,3 +65,44 @@
   letter-spacing: 2px;
 }
 #map-block.off .t { color: var(--faint); }
+
+/* —— 右下角浮动日志按钮 —— */
+/* 高德 ToolBar 插件已不加载（右下角留给日志浮动按钮）；
+   logo/copyright 署名保留显示 */
+
+#btn-log {
+  position: absolute; right: 14px; bottom: 14px; z-index: 8;
+  width: 34px; height: 34px; padding: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel); color: var(--dim);
+  border: 1px solid var(--line); cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+#btn-log svg { width: 15px; height: 15px; }
+#btn-log .ic-map { display: none; }
+#btn-log.active .ic-log { display: none; }
+#btn-log.active .ic-map { display: block; }
+#btn-log:hover { color: var(--text); border-color: var(--faint); }
+#btn-log.active { color: var(--accent); border-color: var(--accent); }
+
+/* —— 日志视图：盖住地图区 —— */
+#log-view {
+  position: absolute; inset: 0; z-index: 7;
+  background: var(--bg); overflow: hidden;
+}
+#log-view.off { display: none; }
+#log-lines {
+  position: absolute; inset: 0; margin: 0; padding: 14px 16px 60px;
+  overflow-y: auto; font-family: var(--mono); font-size: 11px;
+  line-height: 1.7; color: var(--dim); white-space: pre-wrap;
+  word-break: break-all; user-select: text;
+}
+#log-lines div { border-bottom: 1px solid var(--line2); }
+#log-lines div.log-dim { color: var(--faint); }
+/* [LEVEL] 列定宽 9ch（"[WARNING]" 最长）+ 1ch 间隔 → 正文统一从第 11 列起，
+   折行续行也靠 padding/text-indent 对齐 */
+#log-lines .lg { padding-left: 10ch; text-indent: -10ch; }
+#log-lines .lt { display: inline-block; width: 9ch; margin-right: 1ch; text-indent: 0; }
+#log-lines .lg-INFO .lt { color: var(--green); }
+#log-lines .lg-WARNING { color: var(--warn); }
+#log-lines .lg-ERROR { color: var(--red); }

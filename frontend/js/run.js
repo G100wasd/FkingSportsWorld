@@ -278,7 +278,7 @@ $("btn-fit").onclick = doFit;
    拉点/再拟合都会让即将提交的载荷与界面不一致——直接禁用相关按钮，
    取消或提交完成后恢复各自原状态。 */
 const LOCK_IDS = ["btn-auto", "m-auto", "btn-points", "btn-fit",
-                  "btn-edit", "btn-cfg-save", "btn-manual"];
+                  "btn-edit", "btn-cfg-save"];
 let _lockPrev = null;
 function lockUI(on) {
   if (on) {

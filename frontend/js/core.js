@@ -1,7 +1,14 @@
 /* ---------- 全局状态 / 通用工具 ---------- */
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
-// #status(顶栏) 与 #m-status(登录卡) 共用 .statusline 样式，setStatus 双写
+// #status(顶栏) 与 #m-status(登录卡) 共用 .statusline 样式，setStatus 双写。
+// 状态文字只显示固定短语，详细内容经 /api/log 进日志视图。
+const _STATUS_BRIEF = { on: "ONLINE", busy: "WORKING", err: "ERROR", off: "OFFLINE" };
+function logLine(level, text) {
+  fetch("/api/log", { method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ level, text: String(text) }) }).catch(() => {});
+}
 let map = null, sess = null, AMap_ = null;
 let locMarker = null, picking = false;
 let overlays = [];
@@ -23,8 +30,10 @@ function setStatus(cls, text) {
   [["status", "status-txt"], ["m-status", "m-status-txt"]].forEach(([a, b]) => {
     const el = $(a), t = $(b);
     if (el) el.className = "statusline " + cls;
-    if (t) t.textContent = text;
+    if (t) t.textContent = _STATUS_BRIEF[cls] ?? text;
   });
+  if (text && _STATUS_BRIEF[cls] !== undefined)
+    logLine(cls === "err" ? "ERROR" : "INFO", text);
 }
 
 // 左下状态块：off=未登录灰三角 // idle=待机金三角 // busy=作业中

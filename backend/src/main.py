@@ -17,7 +17,7 @@ import traceback
 import uvicorn
 
 from sportsworld.config import CFG
-from sportsworld.web import state
+from sportsworld.web import logcap, state
 from sportsworld.web.app import app  # noqa: F401  # uvicorn main:app 引用
 
 
@@ -62,6 +62,7 @@ if __name__ == "__main__":
             sys.stdout = open(os.devnull, "w", encoding="utf-8")
         if sys.stderr is None:
             sys.stderr = open(os.devnull, "w", encoding="utf-8")
+        logcap.install()   # 打包窗口无控制台：print/logging 尽收进日志视图
 
         def _serve():
             try:
@@ -92,5 +93,6 @@ if __name__ == "__main__":
         except Exception:
             pass
     else:
+        logcap.install()   # uvicorn 启动前装上，服务 print/logging 也进缓冲
         print(f"[wasdSports] serving on {_host}:{_port}")
         uvicorn.run(app, host=_host, port=_port)

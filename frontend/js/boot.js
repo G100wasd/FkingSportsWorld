@@ -51,6 +51,7 @@
       await initMap().catch(() => {});
       if (!applyAnchor(d.anchor) && map) locateMe(AMap_);
       updateAutoBtn();
+      setLogView(false);             // 会话已恢复：切回地图视图
       if (AUTO_MODE) runAutoFlow();    // ?auto 链接：会话有效直接开跑
     } else if (d.login_error) {
       setStatus("err", "自动登录失败: " + d.login_error);

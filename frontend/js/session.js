@@ -87,6 +87,7 @@ async function doLogin() {
     }
     if (!applyAnchor(sess.anchor) && map) locateMe(AMap_);
     updateAutoBtn();
+    setLogView(false);                   // 登录成功：切回地图视图
     if (compact()) gotoCard("c-anchor");   // 手机端登录后跳回定位卡
     if (AUTO_MODE) runAutoFlow();      // ?auto 链接：登录成功即接自动链
   } catch (e) {
@@ -113,6 +114,7 @@ async function doLogout() {
   if (w) w.textContent = "";
   setRunBlock("off");
   setStatus("off", "未登录");
+  setLogView(true);                    // 登出回日志视图（地图已无数据）
 }
 
 $("btn-auth").onclick = () => { sess ? doLogout() : doLogin(); };
@@ -220,12 +222,4 @@ $("btn-auto").onclick = e => runAutoFlow(e.currentTarget);
 $("m-auto").onclick = e => runAutoFlow(e.currentTarget);
 renderLoginInfo();
 
-$("btn-manual").onclick = () => {
-  if (!DEVICE.detected) {
-    alert("当前为 PC 环境。\n「手动跑步」仅支持手机环境使用，请在手机浏览器中打开本页面。");
-    return;
-  }
-  $("manual-hint").textContent =
-    `环境检测通过：${DEVICE.platform === "android" ? "Android" : "iOS"} ` +
-    `${DEVICE.os_version} ${DEVICE.device_name} — 手动跑步功能开发中。`;
-};
+

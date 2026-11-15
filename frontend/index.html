@@ -13,7 +13,10 @@
 
 <!-- ================= 顶栏 ================= -->
 <div id="bar">
-  <img class="logo-img" src="static/logo.png" alt="">
+  <a class="logo-link" href="https://github.com/G100wasd/FkingSportsWorld" target="_blank" rel="noopener" title="G100wasd/FkingSportsWorld">
+    <img class="logo-img" src="static/logo.png" alt="wasdSports">
+    <svg class="logo-gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.49-.37-.26-.9-.68-.9-.68-.72-.49.05-.48.05-.48.8.06 1.22.82 1.22.82.71 1.21 1.86.87 2.32.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.19 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+  </a>
   <input id="inp-user" placeholder="UID&nbsp;账号" spellcheck="false" autocomplete="username">
   <input id="inp-pass" type="password" placeholder="PWD&nbsp;密码" autocomplete="current-password">
   <button class="btn primary" id="btn-auth">登录</button>
@@ -62,13 +65,14 @@
         <path d="M4.5 13.5V8.8M8 13.5V3.8M11.5 13.5V6.3"/>
       </svg>
     </div>
-    <div class="rail-ico bottom" title="手动跑步" data-card="c-manual">
+    <div class="rail-ico bottom" title="信息" data-card="c-info">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1">
         <circle cx="8" cy="8" r="5.6"/>
-        <path d="M6.8 5.6v4.8l4.2-2.4z" fill="currentColor" stroke="none"/>
+        <circle cx="8" cy="5" r="0.9" fill="currentColor" stroke="none"/>
+        <path d="M8 7.4v3.4"/>
       </svg>
     </div>
-    <div class="rail-ico" title="登录" data-card="c-login">
+    <div class="rail-ico bottom" title="登录" data-card="c-login">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1">
         <circle cx="8" cy="5.2" r="2.6"/>
         <path d="M2.8 13.5c.6-2.8 2.7-4.3 5.2-4.3s4.6 1.5 5.2 4.3"/>
@@ -202,16 +206,13 @@
       </div></div>
     </div>
 
-    <div class="card" id="c-manual">
+    <div class="card" id="c-info">
       <div class="card-head">
-        <span class="idx">06/</span><span class="cn">手动跑步</span>
-        <span class="en">Manual&nbsp;Run</span>
+        <span class="idx">06/</span><span class="cn">信息</span>
+        <span class="en">Info</span>
       </div>
       <div class="card-body"><div class="body-inner">
-        <div class="btn-row">
-          <button class="btn primary" id="btn-manual">开始手动跑步</button>
-        </div>
-        <div class="hint" id="manual-hint">手动跑步模式 — 仅手机环境可用。</div>
+        <div class="hint">NO DATA</div>
       </div></div>
     </div>
 
@@ -234,10 +235,6 @@
         <div class="kv-grid" id="login-info"></div>
         <div class="hint">凭据保存于服务端配置，刷新自动恢复会话；登出清除凭据。</div>
       </div></div>
-      <div class="card-foot">
-        <button class="btn" data-nav="-1">上一页</button>
-        <button class="btn" data-nav="1" disabled>下一页</button>
-      </div>
     </div>
 
     </div>
@@ -279,6 +276,18 @@
       <span class="t">//&nbsp;OFFLINE</span>
     </div>
 
+    <!-- 右下角浮动：地图 ⇄ 日志视图切换 -->
+    <button id="btn-log" title="后台日志">
+      <svg class="ic-log" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M3 4.5h10M3 8h10M3 11.5h6"/>
+      </svg>
+      <svg class="ic-map" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1">
+        <path d="M2 3.5l4-1.5 4 1.5 4-1.5v9l-4 1.5-4-1.5-4 1.5z"/>
+        <path d="M6 2v9M10 3.5v9"/>
+      </svg>
+    </button>
+    <div id="log-view" class="off"><pre id="log-lines"></pre></div>
+
   </div>
 
 </div>
@@ -291,6 +300,7 @@
 <script src="/static/js/run.js"></script>
 <script src="/static/js/edit.js"></script>
 <script src="/static/js/nav.js"></script>
+<script src="/static/js/logview.js"></script>
 <script src="/static/js/session.js"></script>
 <script src="/static/js/boot.js"></script>
 </body>
