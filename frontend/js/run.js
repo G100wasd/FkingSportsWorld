@@ -240,6 +240,7 @@ async function doFit() {
 function clearRunState() {
   clearInterval(_queueTicker); clearInterval(_queuePoll);
   _queueTicker = _queuePoll = null;
+  _queueMirror = null;
   lockUI(false);
   $("btn-cancel-submit").style.display = "none";
   clearOverlays();
@@ -301,8 +302,18 @@ function lockUI(on) {
 /* 定时提交队列 UI：按钮显示倒计时，旁挂"取消排队"；
    每 15s 轮询状态直到该 uuid 出队（执行完/被取消）。 */
 let _queueTicker = null, _queuePoll = null;
-function watchQueue(uuid, fireAt, deferred) {
+// 自动跑发起的排队：倒计时/结果同步显示在自动跑按钮上（接力 job 沿用）
+let _queueMirror = null;
+function endMirror(ok) {
+  const m = _queueMirror;
+  _queueMirror = null;
+  if (!m) return;
+  if (ok == null) { m.textContent = "自动跑"; updateAutoBtn(); return; }
+  flashBtnResult(m, ok, "自动跑", ok ? "✓ 提交成功" : null, updateAutoBtn);
+}
+function watchQueue(uuid, fireAt, deferred, mirror) {
   clearInterval(_queueTicker); clearInterval(_queuePoll);
+  if (mirror) _queueMirror = mirror;
   $("btn-cancel-submit").style.display = "";
   $("btn-submit").disabled = true;
   lockUI(true);
@@ -310,9 +321,11 @@ function watchQueue(uuid, fireAt, deferred) {
   let label = deferred ? "开跑" : "自动提交", stage = "";
   const tick = () => {
     const left = Math.max(0, Math.round((fireAt - Date.now()) / 1000));
-    $("btn-submit").textContent = stage ? stage
+    const t = stage ? stage
       : left > 0 ? `${label} ${fmtDur(left)}`
       : (deferred ? "开跑中…" : "提交中…");
+    $("btn-submit").textContent = t;
+    if (_queueMirror) _queueMirror.textContent = t;
   };
   tick();
   _queueTicker = setInterval(tick, 1000);
@@ -327,8 +340,9 @@ function watchQueue(uuid, fireAt, deferred) {
           clearInterval(_queueTicker); clearInterval(_queuePoll);
           $("btn-cancel-submit").style.display = "";
           lockUI(false);
-          $("btn-submit").disabled = false;
-          updateSubmitMode();
+          flashBtnResult($("btn-submit"), false, "提交记录", null,
+                         updateSubmitMode);
+          endMirror(false);
           fitError(`定时任务失败：${esc(mine.error || "未知错误")}`);
         }
         return;
@@ -348,7 +362,9 @@ function watchQueue(uuid, fireAt, deferred) {
       await refreshSessionFlags();   // 先刷 auto 位，再解锁按钮
       lockUI(false);
       if (lr && lr.run_uuid === uuid && lr.ok) {
-        $("btn-submit").textContent = "✓ 已自动提交";
+        flashBtnResult($("btn-submit"), true, "提交记录", "✓ 提交成功",
+                       updateSubmitMode);
+        endMirror(true);
         $("runarea-info").innerHTML =
           `<span style="color:var(--green)">定时提交完成：` +
           `rrid=${lr.rrid} uuid=${uuid} ｜OBS ${lr.obs_ok}/2` +
@@ -356,6 +372,7 @@ function watchQueue(uuid, fireAt, deferred) {
       } else {
         $("btn-submit").disabled = false;
         updateSubmitMode();
+        endMirror(null);
       }
     } catch (_) {}
   }, 5000);
@@ -371,6 +388,7 @@ $("btn-cancel-submit").onclick = async () => {
   lockUI(false);
   $("btn-submit").disabled = false;
   updateSubmitMode();
+  endMirror(null);
   $("runarea-info").innerHTML =
     `<span style="color:var(--warn)">已取消排队提交</span>`;
 };
@@ -387,7 +405,6 @@ async function submitDeferred(startMs) {
   const t = new Date(r.fire_at);
   const p = n => String(n).padStart(2, "0");
   clearDeferHint();
-  flashBtnResult($("btn-submit"), true, "延迟提交", "已排队");
   $("runarea-info").innerHTML =
     `<span style="color:var(--warn)">已排入延迟提交：` +
     `${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())} 自动开跑` +
@@ -409,7 +426,8 @@ $("btn-submit").onclick = async () => {
     if (r.scheduled) {
       const t = new Date(r.fire_at);
       const p = n => String(n).padStart(2, "0");
-      flashBtnResult($("btn-submit"), true, "提交记录", "已排队");
+      // 不闪"已排队"：它 1s 后会把按钮复原成可点的"提交记录"，
+      // 打断倒计时；直接交给 watchQueue 常驻显示，成功后再闪绿
       $("runarea-info").innerHTML =
         `<span style="color:var(--warn)">已加入定时提交队列：` +
         `将于 ${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())} ` +
@@ -418,7 +436,8 @@ $("btn-submit").onclick = async () => {
       watchQueue(r.uuid, r.fire_at);
       return;
     }
-    flashBtnResult($("btn-submit"), true, "提交记录");
+    flashBtnResult($("btn-submit"), true, "提交记录", "✓ 提交成功",
+                   updateSubmitMode);
     const obsTxt = r.obs_ok != null
       ? `｜OBS ${r.obs_ok}/${r.obs_total}` +
         (r.obs_ok >= r.obs_total ? "" : "（轨迹可能不完整）")

@@ -175,6 +175,7 @@
   content: "//"; color: var(--accent); font-family: var(--mono);
   margin-right: 6px; opacity: .7;
 }
+.hint:empty { display: none; }   /* 无内容的提示位不显示孤立的 "//" */
 /* 字段级校验提示：紧贴对应输入框下方，无内容时不占位 */
 .field-hint {
   margin: -4px 0 8px 78px; color: var(--warn);

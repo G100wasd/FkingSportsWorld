@@ -56,14 +56,19 @@ async function api(path, body) {
   return d;
 }
 
-// 按钮结果闪烁：绿底 ✓成功 / 红底 ✗失败（可自定义文字），1s 后恢复原样
-function flashBtnResult(b, ok, resetText, flashText) {
+// 按钮结果闪烁：绿底 ✓成功 / 红底 ✗失败（可自定义文字），1s 后恢复原样；
+// done：恢复后的回调（按业务状态重算按钮可用性/文字）
+function flashBtnResult(b, ok, resetText, flashText, done) {
   b.classList.remove("ok", "fail");
   b.classList.add(ok ? "ok" : "fail");
   b.textContent = flashText || (ok ? "✓ 成功" : "✗ 失败");
   setTimeout(() => {
     b.classList.remove("ok", "fail");
     b.textContent = resetText;
-    b.disabled = false;
+    // 排队锁定期间不解禁被锁按钮：记到锁前状态里，解锁时再恢复
+    const lk = typeof _lockPrev !== "undefined" && _lockPrev;
+    if (lk && b.id in lk) lk[b.id] = false;
+    else b.disabled = false;
+    if (done) done();
   }, 1000);
 }

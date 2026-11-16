@@ -177,33 +177,45 @@ async function runAutoFlow(btn) {
   b.classList.remove("ok", "fail");
   b.textContent = "执行中…";
   setRunBlock("busy");
+  setLogView(false);                   // 自动流程全程在地图上可视
+  const canDraw = !!(map && AMap_);
   try {
     // 拟合可能无可行解：与手动 doFit 同策略——重新拉点重试，
     // 拉取达 MAX_REFIT 次仍失败才报红字
     for (let attempt = 1; attempt <= MAX_REFIT; attempt++) {
+      b.textContent = "拉取打卡点…";
       setStatus("busy", `自动流程：拉取打卡点` +
         (attempt > 1 ? `（第 ${attempt}/${MAX_REFIT} 次）` : "…"));
-      await api("/api/points", { lat: +a.lat, lon: +a.lon });
+      const pts = await api("/api/points", { lat: +a.lat, lon: +a.lon });
+      // 与手动拉点同样落图：清旧叠加层 → 画打卡点 → 视野对准
+      clearOverlays();
+      clearCtrls();
+      trackLocs = []; origLocs = []; lapIdx = []; snapIdx = [];
+      lastFit = null;
+      resetResultCard();
+      if (canDraw) { drawPoints(pts); map.setFitView(overlays); }
+      b.textContent = "拟合轨迹…";
       setStatus("busy", "自动流程：拟合轨迹…");
       try {
-        await api("/api/fit", { ...autoGoal(), reseed: true });
+        const fit = await api("/api/fit", { ...autoGoal(), reseed: true });
+        if (canDraw) renderFit(fit, attempt > 1);   // 轨迹/分圈/起终点落图 + 结果卡
         break;
       } catch (e) {
         if (!e.message.includes("无可行解") || attempt >= MAX_REFIT) throw e;
         setStatus("busy", `拟合无可行解，重新拉点重试…`);
       }
     }
+    b.textContent = "提交中…";
     setStatus("busy", "自动流程：提交记录…");
     const r = await api("/api/submit", {});
     if (r.scheduled) {
-      flashBtnResult(b, true, "自动跑");
       setStatus("on", `自动跑已排队，约 ${Math.max(1, Math.round(r.eta_s / 60))} 分钟后自动提交`);
       $("runarea-info").innerHTML =
         `<span style="color:var(--warn)">自动流程完成：已加入定时提交队列，到点自动提交</span>`;
-      watchQueue(r.uuid, r.fire_at);
+      watchQueue(r.uuid, r.fire_at, false, b);   // 倒计时同步显示在自动跑按钮上
       return;
     }
-    flashBtnResult(b, true, "自动跑");
+    flashBtnResult(b, true, "自动跑", "✓ 提交成功", updateAutoBtn);
     setStatus("on", `自动完成 rrid=${r.rrid}` +
       (r.obs_ok != null ? ` ｜ OBS ${r.obs_ok}/${r.obs_total}` : "") +
       (r.verified ? " ｜ 已回读" : ""));
@@ -211,7 +223,7 @@ async function runAutoFlow(btn) {
       `<span style="color:var(--green)">自动流程完成：` +
       `rrid=${r.rrid} uuid=${r.uuid}</span>`;
   } catch (e) {
-    flashBtnResult(b, false, "自动跑");
+    flashBtnResult(b, false, "自动跑", null, updateAutoBtn);
     setStatus("err", "自动流程失败: " + e.message);
     $("runarea-info").innerHTML =
       `<span style="color:var(--red)">自动流程失败：${esc(e.message)}</span>`;

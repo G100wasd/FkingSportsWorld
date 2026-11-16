@@ -22,3 +22,4 @@ backend/accountsConfig.json
 #测试文件夹
 /test
 
+/backend/dist
