@@ -2,8 +2,10 @@
 from PyInstaller.utils.hooks import collect_all
 
 datas = [('..\\..\\frontend', 'frontend'),
-         ('..\\serverConfig.json', '.'), ('..\\defaultsConfig.json', '.'),
-         ('..\\sessionConfig.json', '.'), ('..\\accountsConfig.json', '.'),
+         # example 模板打进 _MEIPASS：exe 旁无真实 *Config.json 时兜底
+         # （真实文件不入包，避免把凭据/锚点数据泄进分发产物）
+         ('..\\serverConfig.example.json', '.'), ('..\\defaultsConfig.example.json', '.'),
+         ('..\\sessionConfig.example.json', '.'), ('..\\accountsConfig.example.json', '.'),
          ('..\\logo.ico', '.')]   # 托盘图标
 binaries = []
 hiddenimports = ['pystray._win32']   # pystray 按平台动态导入后端
