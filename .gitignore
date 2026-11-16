@@ -23,3 +23,4 @@ backend/accountsConfig.json
 /test
 
 /backend/dist
+/backend/build

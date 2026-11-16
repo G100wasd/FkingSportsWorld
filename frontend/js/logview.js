@@ -61,5 +61,15 @@
 
   $("btn-log").onclick = () => setLogView(!_on);
   window.setLogView = setLogView;   // session.js/boot.js 登录态联动用
-  setLogView(true);                 // 启动默认进日志视图：能看到后端启动输出
+
+  async function _clearLog() {
+    try { await fetch("/api/logs/clear", { method: "POST" }); }
+    catch (e) { /* 后端未就绪：只清本地 DOM */ }
+    _last = 0;
+    $("log-lines").innerHTML = "";
+  }
+  $("btn-log-clear").onclick = _clearLog;
+
+  // 每次加载先清后端缓冲再开视图：页面刷新/重载不堆上一次的日志
+  _clearLog().finally(() => setLogView(true));
 })();

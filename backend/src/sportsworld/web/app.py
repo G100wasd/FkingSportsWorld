@@ -319,6 +319,12 @@ def api_logs(after: int = 0):
     return logcap.snapshot(after)
 
 
+@app.post("/api/logs/clear")
+def api_logs_clear():
+    logcap.clear()
+    return {"ok": True}
+
+
 @app.on_event("startup")
 def _start_submit_worker():
     submitq.start_worker()

@@ -115,6 +115,13 @@ def emit(level: str, text: str):
         _buf.append((_seq, lv, text))
 
 
+def clear():
+    """清空缓冲。seq 不回退：已轮询过的前端水位线不受影响，
+    新行继续递增，不会出现旧行重放。"""
+    with _lock:
+        _buf.clear()
+
+
 def snapshot(after: int = 0, limit: int = 400) -> dict:
     """返回 seq>after 的行。after 落后于已挤出缓冲的部分时给 dropped 计数，
     前端显示一条省略提示而不是静默缺行。"""
