@@ -80,10 +80,12 @@ if __name__ == "__main__":
         except Exception:
             pass
         import webview
+        from sportsworld.web.shell import TrayKeeper
         _title = "wasdSports" if _port == _want else f"wasdSports :{_port}"
-        webview.create_window(
+        _win = webview.create_window(
             _title, f"http://127.0.0.1:{_port}/",
             width=1280, height=840, min_size=(900, 600))
+        TrayKeeper(_win)   # 有排队提交时关闭 = 隐藏到托盘保活
         webview.start()
         # 窗口已关：主线程同步登出远端会话。daemon 里的 uvicorn 来不及
         # 触发 shutdown 事件，不显式调用会导致服务端会话悬挂、

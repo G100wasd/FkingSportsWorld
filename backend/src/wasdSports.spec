@@ -3,9 +3,10 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [('..\\..\\frontend', 'frontend'),
          ('..\\serverConfig.json', '.'), ('..\\defaultsConfig.json', '.'),
-         ('..\\sessionConfig.json', '.'), ('..\\accountsConfig.json', '.')]
+         ('..\\sessionConfig.json', '.'), ('..\\accountsConfig.json', '.'),
+         ('..\\logo.ico', '.')]   # 托盘图标
 binaries = []
-hiddenimports = []
+hiddenimports = ['pystray._win32']   # pystray 按平台动态导入后端
 tmp_ret = collect_all('webview')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
