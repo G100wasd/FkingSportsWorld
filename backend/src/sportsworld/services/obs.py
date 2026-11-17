@@ -44,7 +44,7 @@ def sign_url(sess, key: str, client: httpx.Client,
 def upload_both_keys(sess, keys, payload: bytes, host: str = HOST) -> int:
     """逐 key 签名并 PUT，返回成功数（0..len(keys)）；单 key 失败不中断。"""
     ok = 0
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=30.0, http2=True) as client:
         for key in keys:
             try:
                 url = sign_url(sess, key, client, host=host)
@@ -61,7 +61,7 @@ def upload_both_keys(sess, keys, payload: bytes, host: str = HOST) -> int:
 
 def fetch_object(sess, key: str, host: str = HOST) -> dict:
     """签名 GET 回读 OBS 对象（10 键、值均为 gzip+base64）。"""
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=30.0, http2=True) as client:
         url = sign_url(sess, key, client, method="Get", host=host)
         r = client.get(url)
         r.raise_for_status()

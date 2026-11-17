@@ -24,7 +24,7 @@ def fetch_policy(sess: Session, run_mode: int = 1, ts_ms: int | None = None) -> 
         "selectUnid": int(sess.unid) if str(sess.unid).isdigit() else 0,
         "operateType": 0,
     })
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=30.0, http2=True) as client:
         out = envelope_request(
             client, sess.envelope, sess.identity, "POST",
             HOST + POLICY_PATH, body, uid=sess.uid, token=sess.token,

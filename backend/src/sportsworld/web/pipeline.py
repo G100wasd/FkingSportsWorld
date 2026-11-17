@@ -15,7 +15,7 @@ from fastapi import HTTPException
 
 from ..config import CFG
 from ..domain import stadium, track, wire
-from ..services import runarea, submit
+from ..services import deepest, runarea, submit
 from . import state
 
 RUN = CFG.get("run") or {}   # 与 api_config 共享同一字典对象：保存配置即生效
@@ -74,6 +74,12 @@ def fetch_points(sess, lat: float, lon: float) -> dict:
         traceback.print_exc()
         raise HTTPException(502, f"拉取打卡点失败: {e}")
     area = state.last["area"]
+    # 原生 due-run 三模式：requestFivePoint 成功后即取回执上报
+    # deviceVerify(interactive=5)。自由跑不发（它本就不走取点接口）。
+    # launchIn 异步 fire-and-forget——后台线程发，不拖慢拉点返回
+    threading.Thread(
+        target=deepest.device_verify,
+        args=(sess, deepest.INTERACTIVE_GET_POINT), daemon=True).start()
     sel = next((a for a in area["areas"] if a["idx"] == area["area_idx"]), None)
     hit = next((a for a in area["areas"]
                 if a["idx"] == area["stadium_idx"]), None)
@@ -96,8 +102,29 @@ def run_fit(sess, dist: float = 0.0, dur: int = 0,
     area = state.last["area"]
     dist = dist or _sample_range(RUN, "dist_range", "default_dist", 2200.0)
     dur = int(dur or _sample_range(RUN, "dur_range", "default_dur", 720))
+    # ── 规则钳制：采样区间可能越过学校阈值（reasonList 的 type 1/7/12
+    # 明牌检查）。minDistance/validTime 做防御式单位归一；配速通用窗
+    # 2'00"~10'00"/km 由逐轮记录核验（导出 reasonList 原文如此）。
+    scoring = area.get("scoring") or {}
+    md = float(scoring.get("minDistance") or 0)
+    min_dist = md if md >= 200 else md * 1000.0       # <200 视为公里
+    vt = float(scoring.get("validTime") or 0)
+    min_dur = vt if vt >= 60 else vt * 60.0           # <60 视为分钟
+    if min_dur <= 0:
+        min_dur = 720.0                                # 通用下限：跑 12 分钟
+    PACE_MIN_S, PACE_MAX_S = 120.0, 600.0             # 2'00"~10'00"/km
+    dist = max(dist, min_dist, 100.0)
+    dur = max(dur, min_dur, dist / 1000.0 * PACE_MIN_S)
+    dist = max(dist, dur / PACE_MAX_S * 1000.0)       # 配速不过慢：补里程
+    dur = min(dur, dist / 1000.0 * PACE_MAX_S)
+    dur = int(dur)
     if not (100.0 <= dist <= 50000.0) or not (30 <= dur <= 14400):
         raise HTTPException(400, "目标距离/用时超出合理范围")
+    # 步幅钳制：保证派生平均步频落 60~300spm（cad=v/stride*60 →
+    # stride ∈ [v/5, v]），区间配置越界时收进可行域
+    v = dist / max(dur, 1)
+    ovr = _track_overrides()
+    ovr["stride_mean"] = min(max(ovr["stride_mean"], v * 0.2), v * 0.98)
     # 起跑时刻：锚定拉点时刻（真实流程=拉到点后开跑）。
     # 定时队列已接管提交时机——记录结束在未来合法，调度器会
     # 等到 end+delay 再发；未拉点/未传参才兜底回拨一个已完成窗口
@@ -121,7 +148,6 @@ def run_fit(sess, dist: float = 0.0, dur: int = 0,
         # cad_max）：同一跑道的距离/用时/步幅每天自然不同，
         # 不再产出"距离时长分毫不差"的查重指纹。采样值只在
         # build_track 期间临时覆盖 TRK，跑完即恢复配置原值。
-        ovr = _track_overrides()
         with _fit_lock:
             snap = {k: TRK.get(k) for k in ovr}
             TRK.update(ovr)
@@ -137,6 +163,17 @@ def run_fit(sess, dist: float = 0.0, dur: int = 0,
                     else:
                         TRK[k] = v
         locs = trk["locations"]
+        # 分段 id 基址：真实设备 DB 自增值跨记录单调递增——每账号
+        # 持久化游标，每条记录预留 32 个号（段数有富余，号段间
+        # 的缺口对应未上传的本地跑步，真实可解释）
+        uname = state.current_user()
+        seg_rec = state.account_record(uname) if uname else {}
+        seg_base = int(seg_rec.get("seg_base") or 0)
+        if seg_base <= 0:
+            seg_base = random.randint(50, 800)
+        trk["seg_base"] = seg_base
+        if uname:
+            state.update_account_record(uname, seg_base=seg_base + 32)
     except HTTPException:
         raise
     except Exception as e:

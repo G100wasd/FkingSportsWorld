@@ -15,6 +15,7 @@ from ..integration.client import (check_business, envelope_request,
                                   get_field)
 from ..integration.envelope import compact
 from ..integration.sign import original_sign, signature
+from . import deepest
 from .auth import HOST
 
 RECORD_PATH = "/api/v70260/runnings/save/record"
@@ -82,7 +83,10 @@ def build_record_body(trk, *, uid, selected_unid, policy, min_distance,
         "longitude": trk["startLongitude"],
         "maxRunTime": 0,
         "minSteps": 0,
-        "errorCode": 0,
+        # DeepKnow 回执：原生由 RunSportUploadManger.getEmitSenseData 在
+        # 上传前填充；无 SDK 环境按失败路径 ("", -999) 建模，提交时
+        # submit_record 会再取一次，端点返回真 token 则覆盖重签
+        "errorCode": -999,
         "geeToken": "",
         "unauthorized": 0,
         "themeId": 0,
@@ -106,8 +110,15 @@ def submit_record(sess, body: dict, run_uuid: str,
     """
     runes = f"{policy_ts}{sess.uid}"
     runef = f"{run_uuid}{body['startTime']}"
+    # 上传前取 Gee 回执（对齐原生时序：提交前 getEmitSenseData 填静态
+    # 字段）。两字段在签名域内——拿到真值时必须重签
+    token, code = deepest.fetch_receipt()
+    if token != body.get("geeToken") or code != body.get("errorCode"):
+        body["geeToken"], body["errorCode"] = token, code
+        body["signature"] = signature(body, False)
+        body["originalSign"] = original_sign(body, False)
     try:
-        with httpx.Client(timeout=30.0) as client:
+        with httpx.Client(timeout=30.0, http2=True) as client:
             out = envelope_request(
                 client, sess.envelope, sess.identity, "POST",
                 host + RECORD_PATH, compact(body),

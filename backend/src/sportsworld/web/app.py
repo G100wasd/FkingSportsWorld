@@ -1,5 +1,6 @@
 """FastAPI 端点层：登录/配置/拉点/拟合/定时提交 + 托管前端页面。"""
 
+import os
 import sys
 from pathlib import Path
 
@@ -18,7 +19,9 @@ from . import queue as submitq
 from . import state
 from .pipeline import RUN as _RUN
 
-FRONTEND_DIR = (Path(sys._MEIPASS) / "frontend"
+FRONTEND_DIR = (Path(os.environ["SPORTSWORLD_FRONTEND"])
+                if os.environ.get("SPORTSWORLD_FRONTEND")
+                else Path(sys._MEIPASS) / "frontend"
                 if getattr(sys, "frozen", False)
                 else Path(__file__).resolve().parents[4] / "frontend")
 

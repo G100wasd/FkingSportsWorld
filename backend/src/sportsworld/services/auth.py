@@ -4,6 +4,7 @@ checkGeeUse 免验证码探测 -> [GT4 -> geevalidate] -> login。
 成功返回 Session dict（uid/token/unid/name/weight）。
 """
 
+import threading
 import time
 import uuid
 
@@ -13,6 +14,7 @@ from ..config import CFG
 from ..integration.client import check_business, envelope_request, get_field
 from ..integration.envelope import EnvelopeSession, b64e, compact
 from ..integration.gt4 import solve_gt4
+from . import deepest
 
 HOST = (CFG.get("server") or {}).get("host", "https://run.gxapp.iydsj.com")
 LOGIN_PATH = "/api/v70100/login"
@@ -39,7 +41,7 @@ class Session:
     def logout(self) -> None:
         """POST /api/v6/user/logout 登出并打印结果。"""
         try:
-            with httpx.Client(timeout=30.0) as client:
+            with httpx.Client(timeout=30.0, http2=True) as client:
                 envelope_request(
                     client, self.envelope, self.identity, "POST",
                     HOST + LOGOUT_PATH, "{}",
@@ -138,7 +140,7 @@ def login(username: str, password: str, identity: dict | None = None) -> Session
     session = EnvelopeSession()
     uuid_value = str(uuid.uuid4())
 
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=30.0, http2=True) as client:
         if gee_check(client, session, identity, username):
             print("[login] 免验证码路径：直接登录")
         else:
@@ -201,4 +203,9 @@ def login(username: str, password: str, identity: dict | None = None) -> Session
         raise RuntimeError(f"登录响应缺 uid/token: {str(biz)[:200]}")
     print(f"[session] uid={sess.uid} token={sess.token[:8]}*** "
           f"unid={sess.unid} name={sess.name} weight={sess.weight}")
+    # 原生 LoginViewModel：登录成功即发 deviceVerify(interactive=1)。
+    # launchIn 是 fire-and-forget——后台线程发，不拖慢登录返回
+    threading.Thread(
+        target=deepest.device_verify,
+        args=(sess, deepest.INTERACTIVE_LOGIN), daemon=True).start()
     return sess

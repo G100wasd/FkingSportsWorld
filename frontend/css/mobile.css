@@ -1,5 +1,6 @@
 /* ============ 紧凑布局：手机 & 窗口过窄的 PC ============ */
-/* 最小可用宽度 320px；断点内 卡片全屏 + rail切地图 */
+/* 最小可用宽度 320px；断点内 地图/日志常驻背景 + 底部抽屉卡片
+   (展开40vh/收起露卡头72px，点卡头切换) + 底部横排 icon tab 栏 */
 
 /* 桌面端隐藏地图切换图标（桌面地图常显，不需要） */
 .rail-ico.map-ico { display: none; }
@@ -13,30 +14,78 @@
   #bar .logo-img { height: 24px; }
   #bar input, #bar .btn, #status { display: none; }
 
-  /* —— 卡片视图：占满 rail 之外全部宽度 —— */
+  /* —— 地图/日志常驻背景：铺满 content，面板浮在上方 —— */
   #splitter { display: none; }
-  #panel {
-    flex: 1; width: auto; min-width: 0; max-width: none;
-    padding: 10px 8px;
+  #content { position: relative; }
+  #map-zone { position: absolute; inset: 0; display: block; z-index: 0; }
+
+  /* —— 状态块让位：日志按钮移到右上角，OFFLINE 挪到左上 —— */
+  #map-block { left: 14px; right: auto; }
+  #btn-log { top: 14px; right: 14px; bottom: auto; }
+  #btn-log-clear { top: 14px; right: 56px; }
+
+  /* —— rail 改为底部横排 tab 栏：所有图标左右切换 —— */
+  #rail {
+    position: absolute; left: 0; right: 0; bottom: 0; top: auto;
+    width: auto; height: 54px; z-index: 40;
+    flex-direction: row; justify-content: space-around;
+    align-items: center; padding: 0 6px; gap: 0;
+    background: var(--bg); border-top: 1px solid var(--line);
   }
-  .card { height: calc(100vh - 46px - 20px); }  /* panel padding 同步收窄 */
-  .card-body { padding: 12px 12px 10vh; }
+  #rail .bottom { margin-top: 0; margin-left: auto; }  /* 信息/登录靠右 */
+  #rail .bottom ~ .bottom { margin-left: 0; }
+  #rail .rail-ico:last-child { margin-bottom: 0; }
+  .rail-ico { width: 40px; height: 40px; }
+  .rail-marker {
+    top: auto; bottom: 5px; left: 0;
+    width: 16px; height: 2px;
+  }
+
+  /* —— 底部抽屉面板：展开占 40vh（tab 栏上方），收起露出卡头 72px —— */
+  #panel {
+    position: absolute; left: 0; right: 0; bottom: 54px; top: auto;
+    height: 40vh; width: auto; min-width: 0; max-width: none;
+    padding: 10px 8px 0; z-index: 30;
+    background: var(--bg); border-top: 1px solid var(--line);
+    transform: translateY(calc(100% - 72px));
+    transition: transform .32s cubic-bezier(.3,.8,.3,1);
+  }
+  #content.sheet-up #panel { transform: translateY(0); }
+  #panel::before {   /* 抓柄 */
+    content: ""; position: absolute; top: 4px; left: 50%; z-index: 2;
+    transform: translateX(-50%);
+    width: 34px; height: 4px; border-radius: 2px;
+    background: var(--ghost); pointer-events: none;
+  }
+  .deck-view { height: 100%; }
+  /* 卡片横向排布：每卡 = 面板宽，高度由 align-self:stretch 撑满
+     （不用 height:100%——flex 列内百分比解析不可靠，内容会排到
+     可视区外） */
+  /* min-height/width:0：放开 flex item 默认的内容最小尺寸限制，
+     否则最高的卡会把 deck 撑出视口、card-body 不再内部溢出，
+     滚轮无处可滚（超出部分被 deck-view 静默裁掉） */
+  .deck { flex-direction: row; min-height: 0; min-width: 0; }
+  .card { flex: 0 0 100%; height: auto; }
+  .card-head { padding-top: 10px; cursor: pointer; user-select: none; }
+  .card-foot { display: none; }   /* 翻页由底部 tab 栏替代 */
+  /* 卡片内容顶对齐：居中会让超高内容两头溢出丢失；
+     溢出时滚轮/手势可滚（auto 不常驻占位），
+     overflow-x:hidden 保证元素不越左右边界 */
+  .card-body {
+    justify-content: flex-start;
+    padding: 12px 12px 20px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
   .body-inner { max-width: none; }
 
   /* —— 触控目标加高 —— */
   .row input { height: 34px; }
   .btn-row .btn { height: 34px; }
   .row input[type=range] { height: auto; }
-  .rail-ico { width: 40px; height: 40px; }
 
   /* —— 按钮文字永不折行 —— */
   .btn { white-space: nowrap; }
-
-  /* —— 地图：默认藏，rail 地图图标切出 —— */
-  .rail-ico.map-ico { display: flex; }
-  #map-zone { display: none; }
-  #content.map-open #panel { display: none; }
-  #content.map-open #map-zone { display: block; }
 }
 
 /* —— 超窄屏（≤480px）：字号/间距整体下调 —— */
@@ -46,11 +95,11 @@
 
   #bar .logo-img { height: 20px; }
 
-  /* 卡片头压缩 */
-  .card-head { padding-top: 16px; }
+  /* 卡片头压缩（与抽屉 peek 高度对齐） */
+  .card-head { padding-top: 10px; }
   .card-head .cn { font-size: 14px; letter-spacing: 2px; }
   .card-head .en { font-size: 7px; letter-spacing: 2px; }
-  .card-body { padding: 10px 10px 8vh; }
+  .card-body { padding: 10px 10px 20px; }
 
   /* 按钮行：小字小距，保证三按钮一行放下 */
   .btn-row { gap: 4px; }

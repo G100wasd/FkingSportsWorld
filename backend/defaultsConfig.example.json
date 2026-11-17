@@ -31,6 +31,8 @@
     "corner_iters": 8,
     "inward_a": [0.4, 1.2],
     "inward_period_s": [80.0, 160.0],
+    "lane_base_m": [-4.0, 2.0],
+    "lane_wander_m": 0.8,
     "drift_gps_speed_kmh": 6.0,
     "gps_zero_p": 0.2,
     "weight_kg": 68.0,
@@ -41,6 +43,9 @@
     "cadence_range": [0, 320],
     "cad_max": 260.0,
     "stride_mean": 1.25
+  },
+  "gee": {
+    "token_endpoint": ""
   },
   "frontend": {
     "amap_key": "712078f920fec121063036d2c821f49e",

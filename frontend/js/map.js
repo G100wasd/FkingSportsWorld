@@ -78,6 +78,9 @@ function togglePick(force) {
   $("btn-pick").classList.toggle("active", picking);
   $("btn-pick").textContent = picking ? "点击地图选点…" : "地图选点";
   $("map").classList.toggle("picking", picking);
+  // 手机端进入选点自动收起抽屉露出全图
+  if (picking && window.matchMedia("(max-width: 768px)").matches)
+    $("content").classList.remove("sheet-up");
 }
 
 function applyAnchor(a) {

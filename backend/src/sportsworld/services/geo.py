@@ -105,7 +105,7 @@ def _normalize_fence(fence: dict) -> dict:
 def fetch_geo_fence(sess: Session) -> dict:
     """返回 {"polygons", "run_area_id", "raw", "geo_fences"}。"""
     body = compact({"geoFenceUpdateTime": 0})
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=30.0, http2=True) as client:
         out = envelope_request(
             client, sess.envelope, sess.identity, "POST",
             HOST + FENCE_PATH, body, uid=sess.uid, token=sess.token,
@@ -146,7 +146,7 @@ def fetch_points(sess: Session, lat: float, lon: float, run_area_id: int | None 
     }
     if run_area_id is not None and run_area_id >= 0:
         body["runAreaId"] = str(run_area_id)
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=30.0, http2=True) as client:
         out = envelope_request(
             client, sess.envelope, sess.identity, "POST",
             HOST + POINTS_PATH, compact(body), uid=sess.uid, token=sess.token,

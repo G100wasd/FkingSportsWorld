@@ -24,7 +24,7 @@ COMPLETED_PATH = "/api/v44/runnings/personalSemesterCompleted"
 
 
 def _post(sess, host: str, path: str, body: dict) -> dict:
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=30.0, http2=True) as client:
         out = envelope_request(client, sess.envelope, sess.identity,
                                "POST", host + path, compact(body),
                                uid=sess.uid, token=sess.token)

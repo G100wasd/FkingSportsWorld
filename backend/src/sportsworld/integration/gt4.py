@@ -249,7 +249,7 @@ def _solve_gt4_once(captcha_id: str, http: httpx.Client) -> dict:
 def solve_gt4(captcha_id: str) -> dict:
     """完整 GT4 求解（带重试）。返回 {lotNumber, captchaOutput, passToken, genTime}。"""
     last_err = ""
-    with httpx.Client(timeout=30.0) as http:
+    with httpx.Client(timeout=30.0, http2=True) as http:
         for attempt in range(1, 4):
             try:
                 return _solve_gt4_once(captcha_id, http)

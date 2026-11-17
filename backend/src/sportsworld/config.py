@@ -32,7 +32,11 @@ _io_lock = threading.RLock()
 
 
 def _dir() -> Path:
-    """冻结(exe)时用 exe 旁目录（可写，随程序分发），否则用 backend/。"""
+    """配置目录：SPORTSWORLD_DATA_DIR 环境变量优先（Android 注入
+    filesDir/data）；冻结(exe)用 exe 旁目录；否则用 backend/。"""
+    env = os.environ.get("SPORTSWORLD_DATA_DIR")
+    if env:
+        return Path(env)
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parents[2]

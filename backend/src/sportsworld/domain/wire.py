@@ -227,7 +227,10 @@ def build_segments(track):
         bounds.append(total)
     if len(bounds) > 2 and bounds[-1] - bounds[-2] < 15:
         bounds.pop(-2)                            # 过短的尾巴并进上一段
-    segs, base_id = [], rng.randint(50, 800)
+    # 真实设备的分段 id 是 DB 自增值、跨记录单调递增——基址由
+    # run_fit 按账号持久化游标注入（seg_base）；直接生成时才回退随机
+    segs = []
+    base_id = int(track.get("seg_base") or 0) or rng.randint(50, 800)
     for k, (t0, t1) in enumerate(zip(bounds, bounds[1:])):
         if t1 <= t0:
             continue

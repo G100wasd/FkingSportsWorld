@@ -41,6 +41,16 @@ def build_track(dist, dur, seed, points_bd, fence_ring=None, ring=None,
     # 运行级 flag：会话实体创建时刻，真实数据恒为 start-0.5~5s 的单一值
     # （点/段/窗口/五点共用），由 seed 派生避免扰动主 rng 序列
     run_flag = start_ms - (500 + int(seed) % 4500)
+    # 骨架扰动：打卡点位做 3~12m 随机偏移（均在 40m 过点容差内）。
+    # 自由跑直接改变 CR 环形状，体育场模式改变吸附目标位置——
+    # 每日路线骨架不再逐点重合
+    pts_bd = []
+    for _plat, _plng in points_bd or []:
+        _a = rng.uniform(0.0, math.tau)
+        _r = rng.uniform(3.0, 12.0)
+        pts_bd.append((_plat + math.sin(_a) * _r / MET_LAT,
+                       _plng + math.cos(_a) * _r / MET_LNG))
+    points_bd = pts_bd
     if ring is None:
         dense, arcs, (c_lat, c_lng) = make_point_ring(points_bd)
     else:
@@ -84,6 +94,7 @@ def build_track(dist, dur, seed, points_bd, fence_ring=None, ring=None,
     pause_factor = speed.make_pauses(rng, dur_f)
     lateral = motion.make_lateral(rng)
     inward = motion.make_inward(rng)
+    lane = motion.make_lane(rng)
     w = speed.base_profile(rng, times, dur_f, dist, phase_v, dip_factor)
     w, pause_idx = speed.apply_pauses(rng, w, times, dts, dist, pause_factor)
     seg = [w[i] * dts[i] for i in range(n)]
@@ -120,7 +131,7 @@ def build_track(dist, dur, seed, points_bd, fence_ring=None, ring=None,
             x, y = ring_point_at(dense, arcs, s)
             tx, ty = ring_tangent(dense, arcs, s)
             lo = lateral(t_acc)
-            iw = inward(t_acc)
+            iw = inward(t_acc) + lane(t_acc)
             rr = math.hypot(x, y) or 1.0
             jx = gps.jitter_step(rng, jx)
             jy = gps.jitter_step(rng, jy)
@@ -132,7 +143,7 @@ def build_track(dist, dur, seed, points_bd, fence_ring=None, ring=None,
             d_step = gps.drift_step(rng)
             x, y = ring_point_at(dense, arcs, s)
             tx, ty = ring_tangent(dense, arcs, s)
-            iw = inward(t_acc)
+            iw = inward(t_acc) + lane(t_acc)
             rr = math.hypot(x, y) or 1.0
             x, y = x - ty * lateral(t_acc) - (x / rr) * iw, \
                    y + tx * lateral(t_acc) - (y / rr) * iw
