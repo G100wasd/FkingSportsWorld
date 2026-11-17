@@ -68,6 +68,13 @@ class RunConfigBody(BaseModel):
     default_dur: int | None = None
     # 日期/伪装时间为前端会话值，不落盘——缺省=本地当前日期/时刻
     start_window: list | None = None
+    # 区间参数：每次拟合/提交在 [lo,hi] 内均匀采样（消除
+    # "每天记录一模一样"的查重指纹）；未配置则回退标量默认
+    dist_range: list | None = None        # 距离区间 m（run 段）
+    dur_range: list | None = None         # 用时区间 s（run 段）
+    stride_range: list | None = None      # 步幅区间 m（track 段）
+    alt_range: list | None = None         # 最大海拔区间 m（track 段）
+    cadmax_range: list | None = None      # 最大步频区间（track 段）
     alt_cap: float | None = None          # 生成的最大海拔（track 段）
     cad_max: float | None = None          # 生成的最大步频（track 段）
     stride_mean: float | None = None      # 生成步幅均值 m（track 段）
@@ -93,7 +100,10 @@ def _track_cfg() -> dict:
     t = CFG.get("track") or {}
     return {"alt_cap": t.get("alt_cap", 55.5),
             "cad_max": t.get("cad_max", 260),
-            "stride_mean": t.get("stride_mean", 1.2)}
+            "stride_mean": t.get("stride_mean", 1.2),
+            "stride_range": t.get("stride_range"),
+            "alt_range": t.get("alt_range"),
+            "cadmax_range": t.get("cadmax_range")}
 
 
 @app.get("/")
@@ -125,6 +135,20 @@ def api_config(body: RunConfigBody):
         v = getattr(body, k, None)
         if v is not None and v != "":
             run[k] = v
+    # 区间：run 段 dist/dur，track 段 stride/alt/cadmax。
+    # 校验为二元正数列表；给 null 不覆盖（字段级更新语义一致）
+    for k in ("dist_range", "dur_range"):
+        v = getattr(body, k, None)
+        if isinstance(v, (list, tuple)) and len(v) == 2 and \
+                all(isinstance(x, (int, float)) and x > 0 for x in v):
+            run[k] = sorted((float(v[0]), float(v[1])))
+    for k in ("stride_range", "alt_range", "cadmax_range"):
+        v = getattr(body, k, None)
+        if isinstance(v, (list, tuple)) and len(v) == 2 and \
+                all(isinstance(x, (int, float)) and x > 0 for x in v):
+            rng = sorted((float(v[0]), float(v[1])))
+            cfg.setdefault("track", {})[k] = rng
+            (CFG.setdefault("track", {}))[k] = rng
     # 地点允许空串（用户主动清空）
     for k in ("address", "address_prov"):
         v = getattr(body, k, None)
@@ -206,6 +230,11 @@ def api_record_detail(rrid: int, uuid: str = "", start: int = 0):
 @app.post("/api/logout")
 def api_logout():
     state.reset_last()
+    # 登出先取消排队：排队的 job 属于本会话，登出后必卡 waiting_user
+    # 永久挂着，还会让窗口关闭误判"有提交排队"而进托盘
+    for u, _ in list(submitq.jobs.items()):
+        if u not in submitq.firing:
+            submitq.jobs.pop(u, None)
     state.close_session()
     state.clear_account()
     return state.sess_info(None)
@@ -252,10 +281,11 @@ def api_submit_deferred(body: DeferBody):
     if any(j.get("username") == user and j.get("kind") == "deferred"
            for j in submitq.pending().values()):
         raise HTTPException(409, "已有延迟提交任务在排队")
-    dist = body.dist or _RUN.get("default_dist", 2200.0)
-    dur = body.dur or _RUN.get("default_dur", 720)
+    # dist/dur 传 0：留待点火时 run_fit 在配置区间内采样，
+    # 每天的延迟任务距离/时长自然不同
     job = submitq.enqueue_deferred(user, body.lat, body.lon,
-                                   dist, dur, body.start_ms)
+                                   body.dist or 0, body.dur or 0,
+                                   body.start_ms)
     return {"scheduled": True, "deferred": True, "uuid": job["run_uuid"],
             "fire_at": job["fire_at"],
             "eta_s": max(0, int((job["fire_at"] - now) // 1000))}

@@ -8,7 +8,7 @@ from .util import fmt_gain_time
 
 def post_fixes(locs, rng: random.Random, start_ms):
     """末点收尾减速；索引1 type=5 全零起点哨兵；末点 type=6；后半段
-    67%→n-2 低频散布 type=1/2/8；索引2 avgSpeed 边界修正；首点全零
+    67%→n-2 低频散布 type=0/2/3；索引2 avgSpeed 边界修正；首点全零
     且速度取首个非零值；最后统一回算 gainTime/gainTimeMs。
     """
     if len(locs) >= 4:
@@ -29,7 +29,7 @@ def post_fixes(locs, rng: random.Random, start_ms):
         e["radius"] = e["accuracy"] = round(rng.uniform(1.5, 3.0), 2)
         for i in range(int(len(locs) * 0.67), max(0, len(locs) - 2)):
             if locs[i]["type"] != -1 and rng.random() < 0.06:
-                locs[i]["type"] = rng.choice([1, 1, 2, 8])
+                locs[i]["type"] = rng.choice([0, 0, 0, 2, 3])
                 locs[i]["locType"] = 1
     if len(locs) > 3 and locs[2]["type"] != -1:    # 索引2：首个真实点不跨哨兵
         p2 = locs[2]

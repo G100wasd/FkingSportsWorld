@@ -38,6 +38,9 @@ def build_track(dist, dur, seed, points_bd, fence_ring=None, ring=None,
     """
     rng = random.Random(seed)
     dur_f = float(dur)
+    # 运行级 flag：会话实体创建时刻，真实数据恒为 start-0.5~5s 的单一值
+    # （点/段/窗口/五点共用），由 seed 派生避免扰动主 rng 序列
+    run_flag = start_ms - (500 + int(seed) % 4500)
     if ring is None:
         dense, arcs, (c_lat, c_lng) = make_point_ring(points_bd)
     else:
@@ -166,7 +169,7 @@ def build_track(dist, dur, seed, points_bd, fence_ring=None, ring=None,
             gps_v = gps.gps_speed(rng, avg_sp * 3.6)
 
         locs.append({
-            "id": i + 1, "flag": start_ms,
+            "id": i + 1, "flag": run_flag,
             "lat": -1.0, "lng": -1.0,
             "gLat": round(lat, 7), "gLng": round(lng, 7),
             "speed": gps_v, "avgSpeed": avg_sp,
@@ -192,6 +195,7 @@ def build_track(dist, dur, seed, points_bd, fence_ring=None, ring=None,
     # 汇总：窗口/分段重建 + 衍生指标
     track = {
         "startTime": start_ms,
+        "runFlag": run_flag,
         "startLatitude": locs[0]["gLat"], "startLongitude": locs[0]["gLng"],
         "locations": locs,
         "speedPerTenSec": [], "stepsPerTenSec": [], "segments": [],

@@ -25,9 +25,11 @@ GRACE_S = 60          # 提交完成后的自动退出等待
 
 
 def active_jobs() -> list:
-    """仍会执行的 job：失败（state=failed）的不算，它们不会再跑。"""
+    """仍会执行的 job：failed 不会再跑；账号与当前登录用户不符的
+    （登出/换号）在当前登录态下也不会跑，两者都不算。"""
+    user = state.current_user()
     return [(u, j) for u, j in queue.jobs.items()
-            if j.get("state") != "failed"]
+            if j.get("state") != "failed" and j.get("username") == user]
 
 
 def _icon_image():
@@ -106,7 +108,8 @@ class TrayKeeper:
         while active_jobs():
             if self.gen != gen:
                 return
-            time.sleep(2)
+            icon.title = "wasdSports：" + self._countdown_text()
+            time.sleep(1)
         if self.gen != gen:
             return
         lf = queue.last_fired or {}
@@ -119,9 +122,10 @@ class TrayKeeper:
                    f"{GRACE_S} 秒后自动登出退出。")
         icon.title = "wasdSports：" + msg
         icon.notify(msg, "wasdSports")
-        for _ in range(GRACE_S):
+        for left in range(GRACE_S, 0, -1):
             if self.gen != gen:
                 return
+            icon.title = f"wasdSports：已提交，{left} 秒后登出退出"
             time.sleep(1)
         self._quit()
 

@@ -14,8 +14,10 @@ GPS_SPIKE_P = _T.get("gps_spike_p", 0.015)     # GPS 瞬移毛刺概率（速度
 
 def make_kinds(rng: random.Random, n):
     """点型 (type, locType) 序列：正常/暂停/漂移及其邻接修正。"""
-    tl_w = [((-1, 4), 54), ((-1, 1), 27), ((-1, 12), 13), ((-1, 5), 3), ((-1, 6), 2)]
-    p1, p2, p3 = _T.get("ptype_cum", [0.39, 0.93, 0.96])
+    # 真实分布(31条/6457点)：0~86% -1~5.5% 3~5.3% 2~2.4% 7~0.2%；
+    # type 1/8 零出现；locType 恒为 1（-1 点 98% 也是 1）
+    tl_w = [((-1, 1), 96), ((-1, 4), 3), ((-1, 5), 1)]
+    p1, p2, p3 = _T.get("ptype_cum", [0.053, 0.915, 0.978])
     kinds = []
     for _ in range(n):
         u = rng.random()
@@ -26,11 +28,11 @@ def make_kinds(rng: random.Random, n):
         elif u < p3:
             kinds.append(weighted(rng, tl_w))
         else:
-            kinds.append((rng.choice([1, 1, 1, 1, 2, 2]), 1))
+            kinds.append((2, 1))
     for i in range(1, n):
         prev_drift = kinds[i - 1][0] in (-1, 5, 6)
-        if kinds[i][0] != -1 and prev_drift and rng.random() < 0.08:
-            kinds[i] = (7 if rng.random() < 0.75 else 8, 1)
+        if kinds[i][0] != -1 and prev_drift and rng.random() < 0.05:
+            kinds[i] = (7, 1)
     for i in range(1, n):
         if kinds[i][0] == -1 and kinds[i - 1][0] == -1:
             kinds[i] = (rng.choice([3, 0]), 1)

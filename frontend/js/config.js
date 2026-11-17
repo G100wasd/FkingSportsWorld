@@ -4,61 +4,51 @@ let CFG_START_LO = 6, CFG_START_HI = 22;
 let TAPER_PTS = 14;
 let SAMPLE_ROWS = 40;
 
-function cfgDist() {
-  const v = parseFloat($("cfg-dist").value);
-  return isFinite(v) && v > 0 ? v : CFG_DEFAULT_DIST;
-}
-function cfgSpeed() {
-  const v = parseFloat($("cfg-speed").value);
-  return isFinite(v) && v > 0 ? v : null;
-}
 function halfWidth(s) {
   return s.replace(/[：∶]/g, ":")
           .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
 }
-function cfgDur() {
+function parseDur(raw) {
   // HH:MM:SS / MM:SS / 纯秒。注意：match 数组长度恒为"组数+1"，
   // 不能用它区分有无小时位——未命中的组是 undefined（曾导致 NaN，
   // 用时配置被静默忽略、全程回退默认值）
-  const raw = halfWidth(($("cfg-dur").value || "").trim());
-  const m = raw.match(/^(?:(\d+):)?(\d{1,3}):([0-5]\d)$/);
+  const m = raw.trim().match(/^(?:(\d+):)?(\d{1,3}):([0-5]\d)$/);
   if (m) return (+(m[1] || 0)) * 3600 + (+m[2]) * 60 + (+m[3]);
   const v = parseFloat(raw);
   return isFinite(v) && v > 0 ? Math.round(v) : null;
 }
-function cfgEffDur() {
-  const d = cfgDur(), sp = cfgSpeed();
-  return d || (sp ? Math.round(cfgDist() / sp) : CFG_DEFAULT_DUR);
+/* 数值区间输入：两个框同排 [lo ~ hi]，任一空/非正数 → null；
+   写反了自动交换，不为难用户 */
+function rngNum(id) {
+  const lo = parseFloat(halfWidth(($(id + "-lo").value || "").trim()));
+  const hi = parseFloat(halfWidth(($(id + "-hi").value || "").trim()));
+  return (isFinite(lo) && isFinite(hi) && lo > 0 && hi > 0)
+    ? [Math.min(lo, hi), Math.max(lo, hi)] : null;
 }
-$("cfg-dist").addEventListener("input", () => {
-  const sp = cfgSpeed();
-  if (sp) $("cfg-dur").value = fmtDur(cfgDist() / sp);
-  updateCfgHint();
-});
-$("cfg-speed").addEventListener("input", () => {
-  const sp = cfgSpeed();
-  if (sp) $("cfg-dur").value = fmtDur(cfgDist() / sp);
-  updateCfgHint();
-});
-$("cfg-dur").addEventListener("input", () => {
-  const d = cfgDur();
-  if (d) $("cfg-speed").value = (cfgDist() / d).toFixed(2);
-  updateCfgHint();
-});
-/* 步频×步幅÷60=均速：给定卡片速度，两者只独立其一。
-   持久化的是步幅(stride_mean)，步频为联动显示/输入入口。 */
-function syncCadStride(src) {
-  const v = cfgDist() / cfgEffDur();
-  if (!(v > 0)) return;
-  const cad = parseFloat(halfWidth(($("cfg-cad").value || "").trim()));
-  const str = parseFloat(halfWidth(($("cfg-stride").value || "").trim()));
-  if (src === "cad" && Number.isFinite(cad) && cad > 0)
-    $("cfg-stride").value = (v * 60.0 / cad).toFixed(2);
-  else if (src === "stride" && Number.isFinite(str) && str > 0)
-    $("cfg-cad").value = (v * 60.0 / str).toFixed(0);
+function rngDur() {
+  const a = parseDur(halfWidth(($("cfg-dur-lo").value || "").trim()));
+  const b = parseDur(halfWidth(($("cfg-dur-hi").value || "").trim()));
+  return (a && b) ? [Math.min(a, b), Math.max(a, b)] : null;
 }
-$("cfg-cad").addEventListener("input", () => syncCadStride("cad"));
-$("cfg-stride").addEventListener("input", () => syncCadStride("stride"));
+function cfgDistRange() { return rngNum("cfg-dist") || [CFG_DEFAULT_DIST, CFG_DEFAULT_DIST]; }
+function cfgDurRange() { return rngDur() || [CFG_DEFAULT_DUR, CFG_DEFAULT_DUR]; }
+// 中点：仅用于警告/提示文案，提交时由后端在区间内采样
+function cfgDist() { const r = cfgDistRange(); return (r[0] + r[1]) / 2; }
+function cfgEffDur() { const r = cfgDurRange(); return Math.round((r[0] + r[1]) / 2); }
+/* 派生展示：均速=距离/用时，步频=均速·60/步幅（生成器内部
+   cadence 本就由瞬时速度/步幅派生，这里只预告取值范围） */
+function updateDerivedHint() {
+  const [dl, dh] = cfgDistRange(), [tl, th] = cfgDurRange();
+  const st = rngNum("cfg-stride");
+  const vlo = dl / th, vhi = dh / tl;
+  let t = `均速 ≈${vlo.toFixed(2)}~${vhi.toFixed(2)} m/s`;
+  if (st) t += ` · 步频 ≈${Math.round(vlo * 60 / st[1])}~${Math.round(vhi * 60 / st[0])} spm`;
+  $("cfg-derive-hint").textContent = t + "（每次提交在区间内随机取值）";
+}
+["cfg-dist-lo", "cfg-dist-hi", "cfg-dur-lo", "cfg-dur-hi",
+ "cfg-stride-lo", "cfg-stride-hi", "cfg-alt-lo", "cfg-alt-hi",
+ "cfg-cadmax-lo", "cfg-cadmax-hi"]
+  .forEach(id => $(id).addEventListener("input", updateCfgHint));
 // 日期/伪装时间决定提交按钮是"提交记录"还是"延迟提交"
 $("cfg-start").addEventListener("input", () => {
   startCache = null;
@@ -101,13 +91,14 @@ function computeStart() {
 function updateCfgHint() {
   const { ms, warn } = resolveStart(), d = new Date(ms);
   const p = n => String(n).padStart(2, "0");
+  const [dl, dh] = cfgDistRange(), [tl, th] = cfgDurRange();
   $("cfg-hint").innerHTML =
     (warn ? `<span style="color:var(--warn)">⚠ ${warn}</span><br>` : "") +
     `拉取：${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ` +
     `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}` +
-    ` ｜ ${cfgDist().toFixed(0)}m · ${fmtDur(cfgEffDur())} · ` +
-    `${(cfgDist() / cfgEffDur()).toFixed(2)} m/s`;
-  syncCadStride("stride");   // 速度变化后步频按已持久化的步幅重算
+    ` ｜ ${dl.toFixed(0)}~${dh.toFixed(0)}m · ` +
+    `${fmtDur(tl)}~${fmtDur(th)}`;
+  updateDerivedHint();
 }
 
 /* ---------- 地点：省市两级下拉（AMap DistrictSearch，市名提交到 address） ---------- */
@@ -168,7 +159,7 @@ function initAddrSelect() {
 /* ---------- 保存前的配置检查 ----------
    红字（格式错误）→ 保存按钮下方说明区，且本次不落盘；
    黄字（语义警告）→ 对应输入框下方的 field-hint。 */
-const FIELD_HINTS = ["cfg-start-hint", "cfg-dist-hint"];
+const FIELD_HINTS = ["cfg-start-hint", "cfg-dist-hint", "cfg-derive-hint"];
 function clearCfgHints() {
   FIELD_HINTS.forEach(id => { const e = $(id); if (e) e.textContent = ""; });
 }
@@ -181,19 +172,26 @@ function cfgCheck() {
   const start = v("cfg-start");
   if (start && !/^([01]?\d|2[0-3]):[0-5]\d$/.test(start))
     errs.push("拉取时间格式应为 HH:MM（如 07:30）");
-  const dur = v("cfg-dur");
-  if (dur && !/^(?:\d+:)?\d{1,3}:[0-5]\d$/.test(dur))
-    errs.push("用时格式应为 mm:ss 或 hh:mm:ss（如 12:27）");
+  ["cfg-dur-lo", "cfg-dur-hi"].forEach(id => {
+    const d = v(id);
+    if (d && !/^(?:\d+:)?\d{1,3}:[0-5]\d$/.test(d))
+      errs.push("用时区间格式应为 mm:ss 或 hh:mm:ss（如 12:27）");
+  });
   const date = ($("cfg-date").value || "").trim();
   if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date))
     errs.push("日期格式不正确");
-  [["cfg-dist", "距离"], ["cfg-speed", "均速"], ["cfg-alt", "最大海拔"],
-   ["cfg-cad", "步频"], ["cfg-stride", "步幅"], ["cfg-cadmax", "最大步频"]]
-    .forEach(([id, name]) => {
-      const raw = v(id);
+  [["cfg-dist", "距离"], ["cfg-alt", "最大海拔"],
+   ["cfg-stride", "步幅"], ["cfg-cadmax", "最大步频"]]
+    .forEach(([base, name]) => ["-lo", "-hi"].forEach(sfx => {
+      const raw = v(base + sfx);
       if (raw && !(parseFloat(raw) > 0 && /^\d*\.?\d+$/.test(raw)))
-        errs.push(`${name}应为正数`);
-    });
+        errs.push(`${name}区间应为正数`);
+    }));
+  // 区间允许留空（回退默认）；只填一端视为缺失，提示补齐
+  ["cfg-dist", "cfg-dur", "cfg-alt", "cfg-stride", "cfg-cadmax"].forEach(b => {
+    const a = v(b + "-lo"), c = v(b + "-hi");
+    if ((a && !c) || (!a && c)) errs.push("区间需要同时填左右两端，或都留空");
+  });
   if (errs.length) return { errs };
 
   // 2) 语义警告（不阻断保存）
@@ -217,7 +215,8 @@ function cfgCheck() {
   return { errs: [], future };
 }
 function fitGoal() {
-  return { dist: cfgDist(), dur: cfgEffDur(), start_ms: resolveStartMs() };
+  // dist/dur 传 0：后端在配置区间内采样，每次拟合/提交自然波动
+  return { dist: 0, dur: 0, start_ms: resolveStartMs() };
 }
 
 /* 保存按钮：当前输入值持久化到服务端 defaultsConfig.json 的 run/track 段；
@@ -235,34 +234,19 @@ $("btn-cfg-save").onclick = async () => {
   btn.disabled = true;
   try {
     const payload = {
-      default_dist: cfgDist(),
-      default_dur: cfgEffDur(),
+      dist_range: rngNum("cfg-dist"),
+      dur_range: rngDur(),
+      stride_range: rngNum("cfg-stride"),
+      alt_range: rngNum("cfg-alt"),
+      cadmax_range: rngNum("cfg-cadmax"),
       address: CFG_ADDRESS,
       address_prov: CFG_ADDRESS_PROV,
     };
-    const altRaw = parseFloat(halfWidth(($("cfg-alt").value || "").trim()));
-    if (Number.isFinite(altRaw) && altRaw > 0) payload.alt_cap = altRaw;
-    const cadRaw = parseFloat(halfWidth(($("cfg-cadmax").value || "").trim()));
-    if (Number.isFinite(cadRaw) && cadRaw > 0) payload.cad_max = cadRaw;
-    let strRaw = parseFloat(halfWidth(($("cfg-stride").value || "").trim()));
-    if (!(Number.isFinite(strRaw) && strRaw > 0)) {
-      // 步幅留空但步频有效 → 由 v=cad·str/60 反推步幅入库
-      const cadIn = parseFloat(halfWidth(($("cfg-cad").value || "").trim()));
-      const v = cfgDist() / cfgEffDur();
-      if (Number.isFinite(cadIn) && cadIn > 0 && v > 0)
-        strRaw = v * 60.0 / cadIn;
-    }
-    if (Number.isFinite(strRaw) && strRaw > 0) payload.stride_mean = strRaw;
     const r = await api("/api/config", payload);
-    CFG_DEFAULT_DIST = r.run.default_dist ?? CFG_DEFAULT_DIST;
-    CFG_DEFAULT_DUR = r.run.default_dur ?? CFG_DEFAULT_DUR;
     CFG_ADDRESS = r.run.address || "";
     CFG_ADDRESS_PROV = r.run.address_prov || "";
     updateAddrWarn();
     if (r.run.start_window) [CFG_START_LO, CFG_START_HI] = r.run.start_window;
-    if (r.track?.alt_cap) $("cfg-alt").value = r.track.alt_cap;
-    if (r.track?.cad_max) $("cfg-cadmax").value = r.track.cad_max;
-    if (r.track?.stride_mean) $("cfg-stride").value = r.track.stride_mean;
     flashBtnResult(btn, true, "保存配置");
     updateCfgHint();
     updateSubmitMode();

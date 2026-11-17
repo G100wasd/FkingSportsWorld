@@ -18,7 +18,7 @@
     "dt_main_p": 0.8,
     "dt_main": 5.0,
     "dt_others": [1, 2, 3, 4, 6, 7, 8],
-    "ptype_cum": [0.39, 0.93, 0.96],
+    "ptype_cum": [0.053, 0.915, 0.978],
     "radius_typ3": [1.4, 3.0],
     "radius_normal": [1.2, 2.0],
     "radius_drift": [1.6, 5.0],

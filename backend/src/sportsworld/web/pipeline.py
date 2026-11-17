@@ -8,6 +8,7 @@
 import datetime as dt
 import json
 import random
+import threading
 import traceback
 
 from fastapi import HTTPException
@@ -18,6 +19,37 @@ from ..services import runarea, submit
 from . import state
 
 RUN = CFG.get("run") or {}   # 与 api_config 共享同一字典对象：保存配置即生效
+TRK = CFG.get("track") or {}  # 同上：trackgen 各模块的 _T 就是它
+
+# build_track 期间临时覆盖 TRK 采样值：HTTP 线程池与队列 worker
+# 可能并发拟合，加锁串行化（拟合本身很罕见，开销可忽略）
+_fit_lock = threading.Lock()
+
+
+def _sample_range(sec: dict, rng_key: str, fallback_key: str,
+                  default: float) -> float:
+    """区间采样：sec[rng_key]=[lo,hi] 均匀取一个；
+    未配置区间或区间非法 → 退回标量键 → 内置默认。"""
+    r = sec.get(rng_key)
+    if isinstance(r, (list, tuple)) and len(r) == 2:
+        try:
+            lo, hi = sorted((float(r[0]), float(r[1])))
+            if lo > 0:
+                return random.uniform(lo, hi)
+        except (TypeError, ValueError):
+            pass
+    return float(sec.get(fallback_key, default))
+
+
+def _track_overrides() -> dict:
+    """本次拟合的纹理采样值（stride_mean/alt_cap/cad_max）。
+    未配区间的键原样带上——快照/恢复逻辑统一处理。"""
+    return {
+        "stride_mean": _sample_range(TRK, "stride_range",
+                                     "stride_mean", 1.2),
+        "alt_cap": _sample_range(TRK, "alt_range", "alt_cap", 55.5),
+        "cad_max": _sample_range(TRK, "cadmax_range", "cad_max", 260.0),
+    }
 
 
 def fetch_points(sess, lat: float, lon: float) -> dict:
@@ -62,8 +94,8 @@ def run_fit(sess, dist: float = 0.0, dur: int = 0,
     if state.last["area"] is None:
         raise HTTPException(409, "请先获取打卡点")
     area = state.last["area"]
-    dist = dist or RUN.get("default_dist", 2200.0)
-    dur = dur or RUN.get("default_dur", 720)
+    dist = dist or _sample_range(RUN, "dist_range", "default_dist", 2200.0)
+    dur = int(dur or _sample_range(RUN, "dur_range", "default_dur", 720))
     if not (100.0 <= dist <= 50000.0) or not (30 <= dur <= 14400):
         raise HTTPException(400, "目标距离/用时超出合理范围")
     # 起跑时刻：锚定拉点时刻（真实流程=拉到点后开跑）。
@@ -85,10 +117,25 @@ def run_fit(sess, dist: float = 0.0, dur: int = 0,
         # 只有配置本身引起的差异；手动拟合/自动跑才重掷
         if reseed or state.last["seed"] is None:
             state.last["seed"] = random.randrange(1 << 62)
-        trk = track.build_track(
-            dist, dur, state.last["seed"], area["points_bd"],
-            fence_ring=area["stadium_ring"], ring=(dense, arcs, center),
-            start_ms=start_ms)
+        # 纹理参数每次拟合在配置区间内采样（stride_mean/alt_cap/
+        # cad_max）：同一跑道的距离/用时/步幅每天自然不同，
+        # 不再产出"距离时长分毫不差"的查重指纹。采样值只在
+        # build_track 期间临时覆盖 TRK，跑完即恢复配置原值。
+        ovr = _track_overrides()
+        with _fit_lock:
+            snap = {k: TRK.get(k) for k in ovr}
+            TRK.update(ovr)
+            try:
+                trk = track.build_track(
+                    dist, dur, state.last["seed"], area["points_bd"],
+                    fence_ring=area["stadium_ring"],
+                    ring=(dense, arcs, center), start_ms=start_ms)
+            finally:
+                for k, v in snap.items():
+                    if v is None:
+                        TRK.pop(k, None)
+                    else:
+                        TRK[k] = v
         locs = trk["locations"]
     except HTTPException:
         raise

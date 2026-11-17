@@ -115,14 +115,23 @@
         <div class="row"><label>日期</label><input id="cfg-date" type="date"></div>
         <div class="row"><label>拉取时间</label><input id="cfg-start" placeholder="留空=拉点时的本地时间"></div>
         <div class="hint field-hint" id="cfg-start-hint"></div>
-        <div class="row"><label>距离 m</label><input id="cfg-dist" value="2200"></div>
+        <div class="row"><label>距离 m</label>
+          <input id="cfg-dist-lo" class="rng" placeholder="2000"><span class="rng-sep">~</span>
+          <input id="cfg-dist-hi" class="rng" placeholder="2400"></div>
         <div class="hint field-hint" id="cfg-dist-hint"></div>
-        <div class="row"><label>均速 m/s</label><input id="cfg-speed" placeholder="AUTO"></div>
-        <div class="row"><label>用时 mm:ss</label><input id="cfg-dur" placeholder="AUTO"></div>
-        <div class="row"><label>最大海拔 m</label><input id="cfg-alt" placeholder="55.5"></div>
-        <div class="row"><label>步频 spm</label><input id="cfg-cad" placeholder="165"></div>
-        <div class="row"><label>步幅 m</label><input id="cfg-stride" placeholder="1.20"></div>
-        <div class="row"><label>最大步频</label><input id="cfg-cadmax" placeholder="260"></div>
+        <div class="row"><label>用时 mm:ss</label>
+          <input id="cfg-dur-lo" class="rng" placeholder="12:00"><span class="rng-sep">~</span>
+          <input id="cfg-dur-hi" class="rng" placeholder="13:00"></div>
+        <div class="hint field-hint" id="cfg-derive-hint"></div>
+        <div class="row"><label>最大海拔 m</label>
+          <input id="cfg-alt-lo" class="rng" placeholder="45"><span class="rng-sep">~</span>
+          <input id="cfg-alt-hi" class="rng" placeholder="60"></div>
+        <div class="row"><label>步幅 m</label>
+          <input id="cfg-stride-lo" class="rng" placeholder="1.10"><span class="rng-sep">~</span>
+          <input id="cfg-stride-hi" class="rng" placeholder="1.30"></div>
+        <div class="row"><label>最大步频</label>
+          <input id="cfg-cadmax-lo" class="rng" placeholder="240"><span class="rng-sep">~</span>
+          <input id="cfg-cadmax-hi" class="rng" placeholder="280"></div>
         <div class="row"><label>地点</label>
           <div class="addr-sel">
             <select id="cfg-prov"><option value="">省/直辖市</option></select>

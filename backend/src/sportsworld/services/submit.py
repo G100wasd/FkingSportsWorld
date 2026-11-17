@@ -4,6 +4,7 @@
 （runes/runef/headerSign 双层信封 + nonce/timeStamp/tokenSign 附加头）。
 """
 
+import json
 import math
 import uuid as _uuid
 
@@ -41,11 +42,13 @@ def build_record_body(trk, *, uid, selected_unid, policy, min_distance,
     total_time = trk["totalTime"]
     total_dis = trk["totalDistance"]
     start_ms = trk["startTime"]
-    run_uuid = (run_uuid or str(_uuid.uuid4())).upper()
+    run_uuid = (run_uuid or str(_uuid.uuid4())).lower()  # 真实 uuid 为小写
     speed_win, step_win = wire.submit_windows(trk)
 
     body = {
         "allLocJson": "",
+        "segmentJson": json.dumps(
+            wire.build_segments(trk), separators=(",", ":")),
         "sportType": 1,
         "policy": policy,
         "totalTime": total_time,

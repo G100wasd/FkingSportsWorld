@@ -334,8 +334,11 @@ function watchQueue(uuid, fireAt, deferred, mirror) {
       const st = await fetch("/api/submit/status").then(r => r.json());
       const mine = (st.pending || []).find(j => j.run_uuid === uuid);
       if (mine) {
-        // 到点执行中：按钮显示 拉取打卡点/拟合轨迹 等阶段
-        stage = (mine.state === "failed") ? "" : (mine.stage || "");
+        // stage 只在真正执行时显示（拉取打卡点/拟合轨迹）；
+        // 等待期的 "待提交"/"待开跑" 占位文案不能顶掉倒计时
+        stage = (mine.state === "failed") ? ""
+          : ((st.firing || []).includes(uuid) ? (mine.stage || "") : "");
+        if (mine.fire_at) fireAt = mine.fire_at;   // 退避重试时跟随后端新时刻
         if (mine.state === "failed") {
           clearInterval(_queueTicker); clearInterval(_queuePoll);
           $("btn-cancel-submit").style.display = "";

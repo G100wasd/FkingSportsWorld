@@ -11,6 +11,7 @@ import datetime as _dt
 import gzip
 import json
 import math
+import random
 
 from ..services import geo   # wire.rs 同样跨层用 api::fence::point_xy
 
@@ -27,6 +28,7 @@ def _r0(x):
 def build_windows(track, rrid=0):
     """10s 时间窗 OBS 形态。返回 (speed_windows, step_windows)。"""
     start_ms = track["startTime"]
+    flag = track.get("runFlag") or start_ms
     total = track["totalTime"]
     sp, stf, lo = [], [], 0
     for a, b in zip(track["speedPerTenSec"], track["stepsPerTenSec"]):
@@ -36,12 +38,12 @@ def build_windows(track, rrid=0):
             "beginTime": start_ms + lo * 1000,
             "distance": a["value"],
             "endTime": start_ms + hi * 1000,
-            "flag": start_ms, "id": wid, "queueNum": 0, "state": 0,
+            "flag": flag, "id": wid, "queueNum": 0, "state": 0,
         })
         stf.append({
             "avgDiff": 0.0, "beginTime": start_ms + lo * 1000,
             "endTime": start_ms + hi * 1000,
-            "flag": start_ms, "id": wid, "maxDiff": 0.0, "minDiff": 1000.0,
+            "flag": flag, "id": wid, "maxDiff": 0.0, "minDiff": 1000.0,
             "queueNum": 0, "state": 0, "stepsNum": int(b["value"]),
         })
         lo = hi
@@ -96,7 +98,7 @@ def build_laps(track, start_ms):
             "elevationGain": round(gain - prev_gain, 2),
             "endAltAbs": round(altitude, 2),
             "endAltRel": round(altitude - alt0, 2),
-            "flag": start_ms,
+            "flag": track.get("runFlag") or start_ms,
             "id": len(laps) + 1,
             "isFullLap": lap_d >= 1000.0,
             "lapIndex": len(laps) + 1,
@@ -129,7 +131,8 @@ def five_point_payload(points, track):
         lat, lon = bd or (0.0, 0.0)
         glat, glon = geo.bd09_to_gcj02(lat, lon) if bd else (0.0, 0.0)
         out.append({
-            "flag": track["startTime"], "glat": glat, "glon": glon,
+            "flag": track.get("runFlag") or track["startTime"],
+            "glat": glat, "glon": glon,
             "id": p.get("id", i + 1),
             "isFixed": p.get("isFixed", 0),
             "isPass": passes_point(track, bd) if bd else False,
@@ -184,21 +187,74 @@ def conv_point(p, start_ms):
     return {
         "avgSpeed": p["avgSpeed"], "bdA": p["bdA"], "bdD": p["bdD"],
         "bdG": p["bdG"], "bdS": p["bdS"], "coorType": "gcj02",
-        "count": p["count"], "dtr": 0.0, "flag": start_ms,
+        "count": p["count"], "dtr": 0.0, "flag": p["flag"],
         "gLat": round(glat, 7), "gLng": round(glng, 7),
         "gainTime": p["gainTime"], "id": p["id"],
         "lat": -1.0, "lng": -1.0,
         "locType": p["locType"], "locationId": "",
         "queueNum": p["queueNum"], "radius": p["radius"],
-        "speed": p["speed"], "state": p["state"], "steps": p["steps"],
+        "speed": p["speed"], "state": p["state"],
         "stepDistance": 0.0, "totalDis": p["totalDis"],
         "totalTime": p["totalTime"], "type": p["type"],
         "validDis": p["validDis"], "validTime": p["validTime"],
     }
 
 
+def build_segments(track):
+    """OBS segment_json：分段分析记录（真实客户端按累计移动时间 ~120s 切段，
+    暂停不推进段计时故墙钟时长会被拉长）。avgStep=段内 10s 步频窗均值×6，
+    avgSpeed=段内点速度均值(km/h，含毛刺)，state=131072 为步频过慢段。"""
+    from .trackgen.stats import counters_at      # 延迟导入避免环
+    locs = track["locations"]
+    if not locs:
+        return []
+    rng = random.Random(track["startTime"])
+    start_ms, total = track["startTime"], track["totalTime"]
+    run_flag = track.get("runFlag") or start_ms
+    stw, lo = [], 0                               # 10s 步频窗区间表
+    for b in track.get("stepsPerTenSec") or []:
+        hi = min(lo + b["time"], total)
+        stw.append((lo, hi, b["value"]))
+        lo = hi
+    bounds, move, target = [0], 0.0, rng.uniform(110.0, 135.0)
+    for a, b in zip(locs, locs[1:]):
+        if b["type"] != -1 and b["avgSpeed"] > 0.5:
+            move += b["totalTime"] - a["totalTime"]
+        if move >= target:
+            bounds.append(b["totalTime"])
+            move, target = 0.0, rng.uniform(110.0, 135.0)
+    if bounds[-1] < total:
+        bounds.append(total)
+    if len(bounds) > 2 and bounds[-1] - bounds[-2] < 15:
+        bounds.pop(-2)                            # 过短的尾巴并进上一段
+    segs, base_id = [], rng.randint(50, 800)
+    for k, (t0, t1) in enumerate(zip(bounds, bounds[1:])):
+        if t1 <= t0:
+            continue
+        pts = [p for p in locs if t0 <= p["totalTime"] <= t1]
+        dist = counters_at(locs, t1)[0] - counters_at(locs, t0)[0]
+        wins = [v for lo_, hi_, v in stw
+                if t0 <= (lo_ + hi_) / 2.0 < t1]
+        avg_step = round(sum(wins) / len(wins) * 6.0) if wins else 0
+        segs.append({
+            "avgSpeed": round(sum(p["speed"] for p in pts)
+                              / max(1, len(pts)), 2),
+            "avgStep": avg_step,
+            "distance": round(dist, 2),
+            "endTime": start_ms + t1 * 1000,
+            "flag": run_flag,
+            "id": base_id + k,
+            "intervalStepModel": 0,
+            "originAvgStep": avg_step,
+            "speedStandard": 900,
+            "startTime": start_ms + t0 * 1000,
+            "state": 131072 if avg_step < 60 else 0,
+        })
+    return segs
+
+
 def build_obs_object(track, rrid, run_uuid, uid, five_point_json):
-    """10 键 OBS 对象（值均 gzip+base64；segment_json/runFaceCheck 为空串）。"""
+    """13 键 OBS 对象（值均 gzip+base64；extension_json/runFaceCheck 为空串）。"""
     pts = [conv_point(p, track["startTime"]) for p in track["locations"]]
     run_wrap = {"allLocJson": json.dumps(pts, **_COMPACT), "useZip": False}
     sp, stf = build_windows(track, rrid)
@@ -209,11 +265,14 @@ def build_obs_object(track, rrid, run_uuid, uid, five_point_json):
         "uid": _gz(str(uid).encode("utf-8")),
         "run_data": _gz(json.dumps(run_wrap, **_COMPACT).encode("utf-8")),
         "fixed_point_json": _gz(five_point_json.encode("utf-8")),
-        "segment_json": _gz(b""),
+        "segment_json": _gz(json.dumps(build_segments(track),
+                                     **_COMPACT).encode("utf-8")),
         "speed_json": _gz(json.dumps(sp, **_COMPACT).encode("utf-8")),
         "step_freq_json": _gz(json.dumps(stf, **_COMPACT).encode("utf-8")),
         "laps_json": _gz(json.dumps(laps, **_COMPACT).encode("utf-8")),
         "runFaceCheck": _gz(b""),
+        "points": _gz(json.dumps(pts, **_COMPACT).encode("utf-8")),
+        "extension_json": _gz(b""),
     }
 
 
